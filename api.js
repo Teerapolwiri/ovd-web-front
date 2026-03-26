@@ -1,7 +1,7 @@
 // ===== Overdoze Craft Coffee — API Layer =====
 // วางไฟล์นี้ในโฟลเดอร์เดียวกับ index.html แล้ว import ก่อน app.js
 
-const API_URL = 'https://overdoze_kkc.app/api'; // เปลี่ยนเป็น domain จริงตอน deploy
+const API_URL = 'ovd-web-production.up.railway.app/api'; // เปลี่ยนเป็น domain จริงตอน deploy
 
 // ── Token helpers ──────────────────────────────────────────
 const Token = {
