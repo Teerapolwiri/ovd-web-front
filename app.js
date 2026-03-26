@@ -68,9 +68,30 @@ function toast(msg, type = 'info') {
 function genId() { return Math.random().toString(36).slice(2, 10); }
 function fmtDate(iso) { if (!iso) return '—'; const d = new Date(iso); return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }); }
 function fmtTime(iso) { if (!iso) return '—'; return new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }); }
-function fmtDuration(ms) { const h = Math.floor(ms / 3600000); const m = Math.floor((ms % 3600000) / 60000); return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`; }
+function fmtDuration(min) { const h = Math.floor(min / 60); const m = Math.floor(min % 60); return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`; }
 function getInitials(name) { return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2); }
 const ROLE_LABELS = { barista: 'Barista', roaster: 'Roaster', manager: 'Manager', inventory_lead: 'Inventory Lead', admin: 'Admin' };
+
+// ── Geofencing (Khon Kaen Placeholder) ──
+const SHOP_LOCATION = { lat: 16.48122417520808, lng: 102.81898286239016 }; // คุณสามารถปรับพิกัดร้านที่นี่
+
+function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // Radius of the earth in meters
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in meters
+}
+
+function getCurrentPos() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) return reject(new Error('Geolocation not supported'));
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
+    });
+}
 
 // ── Shared Components ──
 function renderFooter() {
@@ -89,7 +110,7 @@ function renderSidebar(activePage) {
     const isAdmin = user && user.role === 'admin';
     const items = isAdmin ? [
         { icon: 'dashboard', label: 'Overview', page: 'admin' },
-        { icon: 'group', label: 'จัดการพนักงาน', page: 'staff-manage' },
+        { icon: 'group', label: 'พนักงาน', page: 'staff-manage' },
         { icon: 'calendar_month', label: 'ตารางงาน', page: 'schedule' },
         { icon: 'settings', label: 'ตั้งค่า', page: 'settings' },
     ] : [
@@ -98,29 +119,33 @@ function renderSidebar(activePage) {
         { icon: 'calendar_month', label: 'ตารางงาน', page: 'schedule' },
         { icon: 'settings', label: 'ตั้งค่า', page: 'settings' },
     ];
-    return `<aside class="sidebar-desktop h-screen w-64 fixed left-0 top-0 bg-[#F8F9FA] flex flex-col p-4 gap-2 z-40">
-        <div class="px-4 py-6 mb-4">
-            <div class="flex items-center gap-3 mb-1">
-                <div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
-                    <span class="material-symbols-outlined text-primary">coffee</span>
+    return `<aside class="sidebar-desktop h-screen w-72 fixed left-0 top-0 glass-panel flex flex-col p-6 gap-2 z-40">
+        <div class="px-2 py-4 mb-6">
+            <div class="flex items-center gap-4 mb-2">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-primary-dim flex items-center justify-center shadow-lg shadow-primary/20 transform transition hover:scale-105">
+                    <span class="material-symbols-outlined text-white text-[20px]">coffee</span>
                 </div>
-                <h1 class="font-headline font-extrabold text-[#4E6073] text-xl tracking-tighter">Overdoze Craft Coffee</h1>
+                <h1 class="font-headline font-black text-primary text-2xl tracking-tight">Overdoze<span class="text-blue-400">.</span></h1>
             </div>
-            <p class="font-body text-xs text-on-surface-variant font-medium ml-11">Coffee Management</p>
+            <p class="font-headline text-[10px] text-on-surface-variant font-bold ml-[56px] uppercase tracking-[0.2em] opacity-80">Craft Coffee</p>
         </div>
-        <nav class="flex-1 flex flex-col gap-2">
-            ${items.map(i => `<a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium cursor-pointer ${i.page === activePage ? 'active' : 'text-[#586064] hover:bg-[#EAEFF1]'}" onclick="navigate('${i.page}')">
-                <span class="material-symbols-outlined">${i.icon}</span><span>${i.label}</span>
+        <nav class="flex-1 flex flex-col gap-3">
+            ${items.map(i => `<a class="nav-link flex items-center gap-4 px-5 py-4 rounded-2xl transition-all text-sm font-semibold cursor-pointer ${i.page === activePage ? 'active' : 'text-on-surface-variant hover:bg-surface-container-high'}" onclick="navigate('${i.page}')">
+                <span class="material-symbols-outlined ${i.page === activePage ? 'text-primary' : ''}">${i.icon}</span>
+                <span>${i.label}</span>
             </a>`).join('')}
         </nav>
-        <div class="mt-auto flex flex-col gap-2 border-t border-outline-variant/10 pt-4">
-            <div class="flex items-center gap-3 px-4 py-3 mb-2">
-                <div class="w-9 h-9 rounded-full bg-primary-container flex items-center justify-center text-primary font-bold text-sm">${user ? getInitials(user.name) : '??'}</div>
-                <div><p class="text-sm font-semibold text-on-surface">${user ? user.name : ''}</p><p class="text-[10px] text-on-surface-variant">${user ? (ROLE_LABELS[user.role] || user.role) : ''}</p></div>
+        <div class="mt-auto flex flex-col gap-3 border-t border-outline-variant/50 pt-6">
+            <div class="bg-surface-container-low rounded-2xl p-3 flex items-center gap-3 border border-outline-variant/30">
+                <div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-primary font-bold text-sm">${user ? getInitials(user.name) : '??'}</div>
+                <div class="overflow-hidden">
+                    <p class="text-sm font-bold text-on-surface truncate">${user ? user.name : ''}</p>
+                    <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">${user ? (ROLE_LABELS[user.role] || user.role) : ''}</p>
+                </div>
             </div>
-            <a class="flex items-center gap-3 text-[#586064] opacity-70 px-4 py-2 hover:opacity-100 transition-opacity cursor-pointer" onclick="logout()">
+            <a class="flex items-center gap-3 text-error/80 px-4 py-3 hover:bg-error/10 hover:text-error rounded-xl transition-all cursor-pointer" onclick="logout()">
                 <span class="material-symbols-outlined text-sm">logout</span>
-                <span class="font-body text-xs uppercase tracking-widest">Logout</span>
+                <span class="font-headline text-xs font-bold uppercase tracking-widest">Logout</span>
             </a>
         </div>
     </aside>`;
@@ -128,23 +153,15 @@ function renderSidebar(activePage) {
 
 function renderMobileNav(activePage) {
     const user = currentUser();
+    // (ใช้ items เดิมของคุณเลยครับ)
     const isAdmin = user && user.role === 'admin';
-    const items = isAdmin ? [
-        { icon: 'dashboard', label: 'Home', page: 'admin' },
-        { icon: 'groups', label: 'Staff', page: 'staff-manage' },
-        { icon: 'calendar_month', label: 'Plan', page: 'schedule' },
-        { icon: 'settings', label: 'More', page: 'settings' },
-    ] : [
-        { icon: 'dashboard', label: 'Home', page: 'staff' },
-        { icon: 'schedule', label: 'Clock', page: 'timeclock' },
-        { icon: 'calendar_month', label: 'Plan', page: 'schedule' },
-        { icon: 'settings', label: 'More', page: 'settings' },
-    ];
-    return `<nav class="mobile-nav fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-outline-variant/10 flex justify-around items-center px-2 py-3 z-50 md:hidden">
+    const items = isAdmin ? [ /*...รายการเดิม...*/ { icon: 'dashboard', label: 'Home', page: 'admin' }, { icon: 'groups', label: 'Staff', page: 'staff-manage' }, { icon: 'calendar_month', label: 'Plan', page: 'schedule' }, { icon: 'settings', label: 'More', page: 'settings' }] : [ /*...รายการเดิม...*/ { icon: 'dashboard', label: 'Home', page: 'staff' }, { icon: 'schedule', label: 'Clock', page: 'timeclock' }, { icon: 'calendar_month', label: 'Plan', page: 'schedule' }, { icon: 'settings', label: 'More', page: 'settings' }];
+
+    return `<nav class="mobile-nav fixed bottom-0 left-0 right-0 glass-panel border-t border-white/50 flex justify-around items-center px-2 py-2 pb-safe z-50 md:hidden">
         ${items.map(i => `
-            <a onclick="navigate('${i.page}')" class="flex flex-col items-center gap-1 min-w-[64px] transition-all ${i.page === activePage ? 'text-primary' : 'text-on-surface-variant opacity-60'}">
-                <span class="material-symbols-outlined ${i.page === activePage ? 'filled' : ''}">${i.icon}</span>
-                <span class="text-[10px] font-bold uppercase tracking-tighter">${i.label}</span>
+            <a onclick="navigate('${i.page}')" class="flex flex-col items-center gap-1 min-w-[64px] p-2 rounded-xl transition-all ${i.page === activePage ? 'text-primary' : 'text-on-surface-variant opacity-50 hover:opacity-100 hover:bg-surface-container-high'}">
+                <span class="material-symbols-outlined ${i.page === activePage ? 'filled text-2xl' : 'text-xl'} transition-all duration-300">${i.icon}</span>
+                <span class="text-[10px] font-bold uppercase tracking-tight mt-0.5">${i.label}</span>
             </a>
         `).join('')}
     </nav>`;
@@ -152,13 +169,17 @@ function renderMobileNav(activePage) {
 
 function renderTopBar(title) {
     const user = currentUser();
-    return `<header class="sticky top-0 z-30 flex justify-between items-center w-full px-4 md:px-8 py-4 bg-[#F1F4F6]/80 backdrop-blur-md gap-4">
-        <div class="flex items-center min-w-0">
-            <h2 class="text-xl md:text-2xl font-bold tracking-tighter text-[#4E6073] font-headline truncate">${title}</h2>
+    return `<header class="glass-nav sticky top-0 z-30 flex justify-between items-center w-full px-6 md:px-10 py-5 gap-4 shadow-sm">
+        <div class="flex items-center min-w-0 gap-3">
+            <h2 class="text-xl md:text-2xl font-black tracking-tight text-primary font-headline truncate">${title}</h2>
         </div>
-        <div class="flex items-center gap-4 flex-shrink-0">
-            <button class="p-2 rounded-full hover:bg-[#E3E9EC] transition-colors"><span class="material-symbols-outlined text-[#4E6073]">notifications</span></button>
-            <div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-primary font-bold text-sm">${user ? getInitials(user.name) : '??'}</div>
+        <div class="flex items-center gap-5 flex-shrink-0">
+            <button class="p-2.5 rounded-full hover:bg-white shadow-sm border border-transparent hover:border-outline-variant transition-all text-on-surface-variant hover:text-primary">
+                <span class="material-symbols-outlined">notifications</span>
+            </button>
+            <div class="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-primary-dim shadow-md shadow-primary/20 flex items-center justify-center text-white font-bold text-sm border-2 border-white">
+                ${user ? getInitials(user.name) : '??'}
+            </div>
         </div>
     </header>`;
 }
@@ -366,7 +387,7 @@ async function renderStaff() {
     const histRes = await ShiftsAPI.getHistory();
     const sessions = histRes.ok ? (histRes.data.sessions || histRes.data.history || []) : [];
     const activeRes = await ShiftsAPI.getActive();
-    const active = activeRes.ok && activeRes.data.session ? activeRes.data.session : null;
+    const active = activeRes.ok && (activeRes.data.session || activeRes.data.active) ? (activeRes.data.session || activeRes.data.active) : null;
     DB.setOne('activeSession', active);
     const now = new Date();
     const greeting = now.getHours() < 12 ? 'สวัสดีตอนเช้า' : now.getHours() < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
@@ -403,7 +424,7 @@ async function renderStaff() {
                         </div>
                         <div class="flex flex-col items-center justify-center py-6">
                             <div id="clockCircle" class="clock-circle ${active ? 'active' : ''} w-56 h-56 rounded-full border-[12px] ${active ? 'border-primary-container/50' : 'border-surface-container-high'} flex flex-col items-center justify-center bg-surface-container-lowest shadow-xl shadow-primary/5">
-                                <span id="timerDisplay" class="text-5xl font-headline font-extrabold tracking-tight text-primary ${active ? 'timer-active' : ''}">${active ? fmtDuration(Date.now() - new Date(active.clockIn).getTime() - (active.totalBreak || 0)) : '00:00'}</span>
+                                <span id="timerDisplay" class="text-6xl font-headline font-extrabold tracking-tight text-primary ${active ? 'timer-active' : ''}">${active ? fmtDuration(Math.floor((Date.now() - new Date(active.clockIn || active.clock_in).getTime()) / 60000)) : '00:00'}</span>
                                 <span class="text-xs font-bold text-outline-variant uppercase tracking-[0.3em] mt-2">ชั่วโมง:นาที</span>
                             </div>
                         </div>
@@ -447,8 +468,8 @@ async function renderStaff() {
                             ${sessions.length === 0 ? '<p class="p-8 text-center text-on-surface-variant">ยังไม่มีประวัติการทำงาน</p>' :
             sessions.slice(-10).reverse().map(s => `
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-6 border-b border-surface-container-high last:border-0">
-                                <div class="flex flex-col"><span class="text-xs font-bold text-outline-variant uppercase tracking-widest mb-1">วันที่</span><span class="font-semibold">${fmtDate(s.clockIn)}</span></div>
-                                <div class="flex flex-col"><span class="text-xs font-bold text-outline-variant uppercase tracking-widest mb-1">เวลาเข้า-ออก</span><span class="font-semibold">${fmtTime(s.clockIn)} — ${fmtTime(s.clockOut)}</span></div>
+                                <div class="flex flex-col"><span class="text-xs font-bold text-outline-variant uppercase tracking-widest mb-1">วันที่</span><span class="font-semibold">${fmtDate(s.clockIn || s.clock_in)}</span></div>
+                                <div class="flex flex-col"><span class="text-xs font-bold text-outline-variant uppercase tracking-widest mb-1">เวลาเข้า-ออก</span><span class="font-semibold">${fmtTime(s.clockIn || s.clock_in)} — ${fmtTime(s.clockOut || s.clock_out)}</span></div>
                                 <div class="flex flex-col"><span class="text-xs font-bold text-outline-variant uppercase tracking-widest mb-1">ระยะเวลา</span><span class="font-semibold">${fmtDuration(s.duration || 0)}</span></div>
                                 <div class="flex items-center justify-end"><span class="px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container text-xs font-bold uppercase tracking-widest">Verified</span></div>
                             </div>`).join('')}
@@ -469,17 +490,35 @@ function startTimer() {
         if (!active) { clearInterval(_timerInterval); return; }
         const el = document.getElementById('timerDisplay');
         if (el) {
-            const elapsed = Date.now() - new Date(active.clockIn).getTime() - (active.totalBreak || 0) - (active.onBreak ? Date.now() - new Date(active.breakStart).getTime() : 0);
-            el.textContent = fmtDuration(Math.max(0, elapsed));
+            const clockIn = active.clockIn || active.clock_in;
+            const startTime = new Date(clockIn).getTime();
+            if (isNaN(startTime)) return el.textContent = '00:00';
+            const elapsedMin = Math.floor((Date.now() - startTime) / 60000);
+            el.textContent = fmtDuration(Math.max(0, elapsedMin));
         }
     }, 1000);
 }
 
 async function handleClockIn() {
-    const res = await ShiftsAPI.clockIn();
-    if (!res.ok) { toast(res.error, 'error'); return; }
-    toast('ลงเวลาเข้างานเรียบร้อย!', 'success');
-    await router();
+    try {
+        toast('กำลังตรวจสอบตำแหน่งของคุณ...', 'info');
+        const pos = await getCurrentPos();
+        const { latitude, longitude } = pos.coords;
+        const dist = getDistance(latitude, longitude, SHOP_LOCATION.lat, SHOP_LOCATION.lng);
+
+        if (dist > 500) {
+            toast(`คุณอยู่นอกระยะที่กำหนด (ห่างจากร้าน ${Math.round(dist)} ม.)`, 'error');
+            return;
+        }
+
+        const res = await ShiftsAPI.clockIn();
+        if (!res.ok) { toast(res.error, 'error'); return; }
+        toast('ลงเวลาเข้างานเรียบร้อย!', 'success');
+        await router();
+    } catch (err) {
+        toast('กรุณาเปิดตำแหน่ง (GPS) และอนุญาตให้เข้าถึงก่อนลงเวลา', 'error');
+        console.error('Geo error:', err);
+    }
 }
 
 async function handleBreak() {
@@ -507,7 +546,7 @@ async function renderAdmin() {
     const pending = staff.filter(u => u.status === 'pending');
     const approved = staff.filter(u => u.status === 'approved');
     const totalHours = sessions.reduce((a, s) => a + (s.duration || 0), 0);
-    const todaySessions = sessions.filter(s => { const d = new Date(s.clockIn); const t = new Date(); return d.toDateString() === t.toDateString(); });
+    const todaySessions = sessions.filter(s => { const d = new Date(s.clockIn || s.clock_in); const t = new Date(); return d.toDateString() === t.toDateString(); });
 
     const app = document.getElementById('app');
     app.innerHTML = `${renderSidebar('admin')} ${renderMobileNav('admin')}
@@ -559,15 +598,15 @@ async function renderAdmin() {
                     </div>
 
                     <!-- Staff List -->
-                    <div class="bg-surface-container-lowest rounded-[1.5rem] p-8 shadow-sm">
+                    <div class="bg-surface-container-lowest rounded-[1.5rem] p-8 shadow-sm border border-outline-variant/10 shadow-premium">
                         <div class="flex justify-between items-center mb-6">
-                            <h3 class="text-lg font-bold text-on-surface">รายชื่อพนักงาน</h3>
+                            <h3 class="text-lg font-bold text-on-surface font-headline">รายชื่อพนักงาน</h3>
                             <span class="text-xs text-on-surface-variant">${approved.length} คน</span>
                         </div>
                         <div class="space-y-3">
                             ${approved.length === 0 ? '<p class="text-center text-on-surface-variant py-4">ยังไม่มีพนักงาน</p>' :
             approved.map(s => {
-                const userSessions = sessions.filter(ss => ss.userId === s.id);
+                const userSessions = sessions.filter(ss => (ss.userId || ss.staffId) === s.id);
                 const lastSession = userSessions[userSessions.length - 1];
                 return `<div class="flex items-center justify-between p-3 hover:bg-surface-container-low rounded-xl transition-colors">
                                     <div class="flex items-center gap-4">
@@ -618,7 +657,7 @@ async function renderAdmin() {
                     </div>
 
                     <!-- All Staff Sessions Today -->
-                    <div class="bg-tertiary-container rounded-[1.5rem] p-6 relative overflow-hidden">
+                    <div class="bg-tertiary-container rounded-[1.5rem] p-6 relative overflow-hidden mb-6">
                         <div class="relative z-10">
                             <span class="text-[10px] font-bold text-on-tertiary-container/60 uppercase tracking-widest">สรุปวันนี้</span>
                             <p class="mt-2 text-sm text-on-tertiary-container font-medium leading-relaxed">
@@ -627,6 +666,28 @@ async function renderAdmin() {
                             </p>
                         </div>
                         <span class="material-symbols-outlined absolute -bottom-4 -right-4 text-8xl text-primary/5">tips_and_updates</span>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="bg-surface-container-low rounded-[1.5rem] p-6">
+                        <h3 class="text-lg font-bold text-primary font-headline mb-6 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-sm">bolt</span>
+                            ความเคลื่อนไหวล่าสุด
+                        </h3>
+                        <div class="space-y-4">
+                            ${sessions.length === 0 ? '<p class="text-center py-8 text-on-surface-variant text-sm">ยังไม่มีประวัติ</p>' : 
+                                sessions.slice(0, 5).map(s => {
+                                    const staffMember = users.find(u => u.id === s.staffId);
+                                    return `
+                                    <div class="flex gap-4 items-start p-2 hover:bg-white/40 rounded-xl transition-all">
+                                        <div class="w-8 h-8 rounded-full bg-surface-container-high flex-shrink-0 flex items-center justify-center text-on-surface-variant text-[10px] font-bold">${staffMember ? getInitials(staffMember.name) : '??'}</div>
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-bold text-on-surface truncate">${staffMember ? staffMember.name : 'Unknown'}</p>
+                                            <p class="text-[10px] text-on-surface-variant font-medium">ลงเวลา${s.clockOut ? 'ออก' : 'เข้า'}: ${fmtTime(s.clockOut || s.clockIn)}</p>
+                                        </div>
+                                    </div>`;
+                                }).join('')}
+                        </div>
                     </div>
                 </div>
             </section>
@@ -640,13 +701,13 @@ function renderWeeklyChart(sessions) {
     for (let i = 6; i >= 0; i--) {
         const d = new Date(); d.setDate(d.getDate() - i);
         const dayStr = d.toDateString();
-        const dayHours = sessions.filter(s => new Date(s.clockIn).toDateString() === dayStr).reduce((a, s) => a + (s.duration || 0), 0);
-        days.push({ label: d.toLocaleDateString('th-TH', { weekday: 'short' }), hours: dayHours / 3600000 });
+        const dayMinutes = sessions.filter(s => new Date(s.clockIn).toDateString() === dayStr).reduce((a, s) => a + (s.duration || 0), 0);
+        days.push({ label: d.toLocaleDateString('th-TH', { weekday: 'short' }), minutes: dayMinutes });
     }
-    const maxH = Math.max(...days.map(d => d.hours), 1);
+    const maxM = Math.max(...days.map(d => d.minutes), 60);
     const colors = ['bg-primary/20', 'bg-primary/40', 'bg-primary/30', 'bg-primary/50', 'bg-primary/60', 'bg-primary/80', 'bg-[#4E6073]'];
     return days.map((d, i) => {
-        const h = Math.max(d.hours / maxH * 100, 8);
+        const h = Math.max(d.minutes / maxM * 100, 8);
         return `<div class="flex-1 flex flex-col items-center justify-end gap-2">
             <div class="${colors[i] || 'bg-primary/40'} rounded-t-lg w-full transition-all" style="height:${h}%"></div>
             <span class="text-[10px] text-on-surface-variant font-medium">${d.label}</span>
@@ -675,9 +736,9 @@ async function renderTimeclock() {
     const histRes = await ShiftsAPI.getHistory();
     const sessions = histRes.ok ? (histRes.data.sessions || histRes.data.history || []) : [];
     const activeRes = await ShiftsAPI.getActive();
-    const active = activeRes.ok && activeRes.data.session ? activeRes.data.session : null;
+    const active = activeRes.ok && (activeRes.data.session || activeRes.data.active) ? (activeRes.data.session || activeRes.data.active) : null;
     DB.setOne('activeSession', active);
-    const todaySessions = sessions.filter(s => new Date(s.clockIn).toDateString() === new Date().toDateString());
+    const todaySessions = sessions.filter(s => new Date(s.clockIn || s.clock_in).toDateString() === new Date().toDateString());
     const todayTotal = todaySessions.reduce((a, s) => a + (s.duration || 0), 0);
 
     const app = document.getElementById('app');
@@ -701,14 +762,14 @@ async function renderTimeclock() {
                         ${active ? `<div class="px-4 py-2 bg-primary-container/40 rounded-full">
                             <span class="text-xs font-bold text-primary uppercase tracking-widest flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full bg-primary pulse-dot"></span>
-                                ${active.onBreak ? 'พักเบรก' : 'On Shift'}
+                                ${(active.onBreak || active.on_break) ? 'พักเบรก' : 'On Shift'}
                             </span>
                         </div>` : ''}
                     </div>
 
                     <div class="flex flex-col items-center py-10">
                         <div class="clock-circle ${active ? 'active' : ''} w-72 h-72 rounded-full border-[16px] ${active ? 'border-primary-container/50' : 'border-surface-container-high'} flex flex-col items-center justify-center bg-surface-container-lowest shadow-2xl shadow-primary/5">
-                            <span id="timerDisplay" class="text-6xl font-headline font-extrabold tracking-tight text-primary ${active ? 'timer-active' : ''}">${active ? fmtDuration(Date.now() - new Date(active.clockIn).getTime() - (active.totalBreak || 0)) : '00:00'}</span>
+                            <span id="timerDisplay" class="text-6xl font-headline font-extrabold tracking-tight text-primary ${active ? 'timer-active' : ''}">${active ? fmtDuration(Math.floor((Date.now() - new Date(active.clockIn || active.clock_in).getTime()) / 60000)) : '00:00'}</span>
                             <span class="text-xs font-bold text-outline-variant uppercase tracking-[0.3em] mt-3">ชั่วโมง : นาที</span>
                         </div>
                     </div>
@@ -716,7 +777,7 @@ async function renderTimeclock() {
                     <div class="grid ${active ? 'grid-cols-2' : 'grid-cols-1'} gap-4 max-w-md mx-auto">
                         ${active ? `
                             <button onclick="handleBreak()" class="btn-press bg-surface-container-lowest text-primary py-5 px-6 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-white shadow-sm text-lg">
-                                <span class="material-symbols-outlined">${active.onBreak ? 'play_arrow' : 'coffee_maker'}</span> ${active.onBreak ? 'กลับเข้างาน' : 'พักเบรก'}
+                                <span class="material-symbols-outlined">${(active.onBreak || active.on_break) ? 'play_arrow' : 'coffee_maker'}</span> ${(active.onBreak || active.on_break) ? 'กลับเข้างาน' : 'พักเบรก'}
                             </button>
                             <button onclick="handleClockOut()" class="btn-press bg-primary text-on-primary py-5 px-6 rounded-2xl font-bold flex items-center justify-center gap-3 hover:opacity-90 shadow-lg shadow-primary/20 text-lg">
                                 <span class="material-symbols-outlined">logout</span> ลงเวลาออก
@@ -756,8 +817,8 @@ async function renderTimeclock() {
                     ${todaySessions.length === 0 ? '<p class="p-8 text-center text-on-surface-variant">ยังไม่มีเซสชันวันนี้</p>' :
             todaySessions.reverse().map(s => `
                     <div class="grid grid-cols-3 gap-4 p-6 border-b border-surface-container-high last:border-0">
-                        <div><span class="text-xs font-bold text-outline-variant uppercase tracking-widest block mb-1">เข้างาน</span><span class="font-semibold">${fmtTime(s.clockIn)}</span></div>
-                        <div><span class="text-xs font-bold text-outline-variant uppercase tracking-widest block mb-1">ออกงาน</span><span class="font-semibold">${fmtTime(s.clockOut)}</span></div>
+                        <div><span class="text-xs font-bold text-outline-variant uppercase tracking-widest block mb-1">เข้างาน</span><span class="font-semibold">${fmtTime(s.clockIn || s.clock_in)}</span></div>
+                        <div><span class="text-xs font-bold text-outline-variant uppercase tracking-widest block mb-1">ออกงาน</span><span class="font-semibold">${fmtTime(s.clockOut || s.clock_out)}</span></div>
                         <div class="text-right"><span class="text-xs font-bold text-outline-variant uppercase tracking-widest block mb-1">ระยะเวลา</span><span class="font-semibold text-primary">${fmtDuration(s.duration || 0)}</span></div>
                     </div>`).join('')}
                 </div>
@@ -848,7 +909,7 @@ async function renderStaffManage() {
                             </thead>
                             <tbody>
                                 ${staff.map(s => {
-                const sc = sessions.filter(ss => ss.userId === s.id).length;
+                const sc = sessions.filter(ss => (ss.userId || ss.staffId) === s.id).length;
                 const statusClass = s.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : s.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700';
                 const statusLabel = s.status === 'approved' ? 'อนุมัติ' : s.status === 'pending' ? 'รออนุมัติ' : 'ปฏิเสธ';
                 return `<tr class="border-b border-surface-container-high hover:bg-surface-container-low/50 transition-colors">
@@ -950,7 +1011,7 @@ async function renderSchedule() {
                         <span class="text-xs text-on-surface-variant font-medium">${d.sessions.length} เซสชัน • ${fmtDuration(d.sessions.reduce((a, s) => a + (s.duration || 0), 0))}</span>
                     </div>
                     ${d.sessions.map(s => {
-        const staffUser = users.find(u => u.id === s.userId);
+        const staffUser = users.find(u => u.id === (s.userId || s.staffId));
         return `<div class="flex items-center justify-between p-4 border-b border-surface-container-high/50 last:border-0 hover:bg-surface-container-low/30 transition-colors">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-full bg-primary-container/30 flex items-center justify-center text-primary text-xs font-bold">${staffUser ? getInitials(staffUser.name) : '??'}</div>
@@ -1004,7 +1065,7 @@ async function renderSettings() {
                         <div>
                             <h2 class="text-2xl font-bold font-headline text-on-surface">${user.name}</h2>
                             <p class="text-on-surface-variant">${ROLE_LABELS[user.role] || user.role}</p>
-                            <p class="text-xs text-on-surface-variant/60 mt-1">เข้าร่วมเมื่อ ${fmtDate(user.registeredAt)}</p>
+                            <p class="text-xs text-on-surface-variant/60 mt-1">เข้าร่วมเมื่อ ${fmtDate(user.registeredAt || user.registered_at)}</p>
                         </div>
                     </div>
 
