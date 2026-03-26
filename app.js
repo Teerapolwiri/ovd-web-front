@@ -126,6 +126,30 @@ function renderSidebar(activePage) {
     </aside>`;
 }
 
+function renderMobileNav(activePage) {
+    const user = currentUser();
+    const isAdmin = user && user.role === 'admin';
+    const items = isAdmin ? [
+        { icon: 'dashboard', label: 'Home', page: 'admin' },
+        { icon: 'groups', label: 'Staff', page: 'staff-manage' },
+        { icon: 'calendar_month', label: 'Plan', page: 'schedule' },
+        { icon: 'settings', label: 'More', page: 'settings' },
+    ] : [
+        { icon: 'dashboard', label: 'Home', page: 'staff' },
+        { icon: 'schedule', label: 'Clock', page: 'timeclock' },
+        { icon: 'calendar_month', label: 'Plan', page: 'schedule' },
+        { icon: 'settings', label: 'More', page: 'settings' },
+    ];
+    return `<nav class="mobile-nav fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-outline-variant/10 flex justify-around items-center px-2 py-3 z-50 md:hidden">
+        ${items.map(i => `
+            <a onclick="navigate('${i.page}')" class="flex flex-col items-center gap-1 min-w-[64px] transition-all ${i.page === activePage ? 'text-primary' : 'text-on-surface-variant opacity-60'}">
+                <span class="material-symbols-outlined ${i.page === activePage ? 'filled' : ''}">${i.icon}</span>
+                <span class="text-[10px] font-bold uppercase tracking-tighter">${i.label}</span>
+            </a>
+        `).join('')}
+    </nav>`;
+}
+
 function renderTopBar(title) {
     const user = currentUser();
     return `<header class="sticky top-0 z-30 flex justify-between items-center w-full px-4 md:px-8 py-4 bg-[#F1F4F6]/80 backdrop-blur-md gap-4">
@@ -340,17 +364,17 @@ async function renderStaff() {
     if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
     const user = currentUser();
     const histRes = await ShiftsAPI.getHistory();
-    const sessions = histRes.ok ? histRes.data.history : [];
+    const sessions = histRes.ok ? (histRes.data.sessions || histRes.data.history || []) : [];
     const activeRes = await ShiftsAPI.getActive();
-    const active = activeRes.ok && activeRes.data.active ? activeRes.data.session : null;
+    const active = activeRes.ok && activeRes.data.session ? activeRes.data.session : null;
     DB.setOne('activeSession', active);
     const now = new Date();
     const greeting = now.getHours() < 12 ? 'สวัสดีตอนเช้า' : now.getHours() < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
     const dateStr = now.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
     const app = document.getElementById('app');
-    app.innerHTML = `${renderSidebar('staff')}
-    <main class="main-with-sidebar flex-1 md:ml-64 flex flex-col min-h-screen">
+    app.innerHTML = `${renderSidebar('staff')} ${renderMobileNav('staff')}
+    <main class="main-with-sidebar flex-1 md:ml-64 flex flex-col min-h-screen pb-20 md:pb-0">
         ${renderTopBar('Staff Portal')}
         <section class="p-8 flex-1">
             <div class="max-w-6xl mx-auto">
@@ -486,8 +510,8 @@ async function renderAdmin() {
     const todaySessions = sessions.filter(s => { const d = new Date(s.clockIn); const t = new Date(); return d.toDateString() === t.toDateString(); });
 
     const app = document.getElementById('app');
-    app.innerHTML = `${renderSidebar('admin')}
-    <main class="main-with-sidebar flex-1 md:ml-64 flex flex-col min-h-screen">
+    app.innerHTML = `${renderSidebar('admin')} ${renderMobileNav('admin')}
+    <main class="main-with-sidebar flex-1 md:ml-64 flex flex-col min-h-screen pb-20 md:pb-0">
         ${renderTopBar('Admin Dashboard')}
         <div class="p-8 space-y-8">
             <!-- Hero Stats -->
@@ -649,16 +673,16 @@ async function renderTimeclock() {
     if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
     const user = currentUser();
     const histRes = await ShiftsAPI.getHistory();
-    const sessions = histRes.ok ? histRes.data.history : [];
+    const sessions = histRes.ok ? (histRes.data.sessions || histRes.data.history || []) : [];
     const activeRes = await ShiftsAPI.getActive();
-    const active = activeRes.ok && activeRes.data.active ? activeRes.data.session : null;
+    const active = activeRes.ok && activeRes.data.session ? activeRes.data.session : null;
     DB.setOne('activeSession', active);
     const todaySessions = sessions.filter(s => new Date(s.clockIn).toDateString() === new Date().toDateString());
     const todayTotal = todaySessions.reduce((a, s) => a + (s.duration || 0), 0);
 
     const app = document.getElementById('app');
-    app.innerHTML = `${renderSidebar('timeclock')}
-    <main class="main-with-sidebar flex-1 md:ml-64 flex flex-col min-h-screen">
+    app.innerHTML = `${renderSidebar('timeclock')} ${renderMobileNav('timeclock')}
+    <main class="main-with-sidebar flex-1 md:ml-64 flex flex-col min-h-screen pb-20 md:pb-0">
         ${renderTopBar('ลงเวลางาน')}
         <section class="p-8 flex-1">
             <div class="max-w-4xl mx-auto">
@@ -755,8 +779,8 @@ async function renderStaffManage() {
     const rejected = staff.filter(u => u.status === 'rejected');
 
     const app = document.getElementById('app');
-    app.innerHTML = `${renderSidebar('staff-manage')}
-    <main class="main-with-sidebar flex-1 md:ml-64 flex flex-col min-h-screen">
+    app.innerHTML = `${renderSidebar('staff-manage')} ${renderMobileNav('staff-manage')}
+    <main class="main-with-sidebar flex-1 md:ml-64 flex flex-col min-h-screen pb-20 md:pb-0">
         ${renderTopBar('จัดการพนักงาน')}
         <section class="p-8 flex-1">
             <div class="max-w-6xl mx-auto">
@@ -892,8 +916,8 @@ async function renderSchedule() {
     }
 
     const app = document.getElementById('app');
-    app.innerHTML = `${renderSidebar('schedule')}
-    <main class="main-with-sidebar flex-1 md:ml-64 flex flex-col min-h-screen">
+    app.innerHTML = `${renderSidebar('schedule')} ${renderMobileNav('schedule')}
+    <main class="main-with-sidebar flex-1 md:ml-64 flex flex-col min-h-screen pb-20 md:pb-0">
         ${renderTopBar('ตารางงาน')}
         <section class="p-8 flex-1">
             <div class="max-w-6xl mx-auto">
@@ -959,12 +983,12 @@ async function renderSchedule() {
 async function renderSettings() {
     const user = currentUser();
     const histRes = await ShiftsAPI.getHistory();
-    const sessions = histRes.ok ? (histRes.data.history || histRes.data.data || histRes.data || []) : [];
+    const sessions = histRes.ok ? (histRes.data.sessions || histRes.data.history || histRes.data.data || []) : [];
     const totalHours = sessions.reduce((a, s) => a + (s.duration || 0), 0);
 
     const app = document.getElementById('app');
-    app.innerHTML = `${renderSidebar('settings')}
-    <main class="main-with-sidebar flex-1 md:ml-64 flex flex-col min-h-screen">
+    app.innerHTML = `${renderSidebar('settings')} ${renderMobileNav('settings')}
+    <main class="main-with-sidebar flex-1 md:ml-64 flex flex-col min-h-screen pb-20 md:pb-0">
         ${renderTopBar('ตั้งค่า')}
         <section class="p-8 flex-1">
             <div class="max-w-3xl mx-auto">
