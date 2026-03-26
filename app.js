@@ -104,7 +104,7 @@ function renderSidebar(activePage) {
                 <div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
                     <span class="material-symbols-outlined text-primary">coffee</span>
                 </div>
-                <h1 class="font-headline font-extrabold text-[#4E6073] text-xl tracking-tighter">Overdoze Craft</h1>
+                <h1 class="font-headline font-extrabold text-[#4E6073] text-xl tracking-tighter">Overdoze Craft Coffee</h1>
             </div>
             <p class="font-body text-xs text-on-surface-variant font-medium ml-11">Coffee Management</p>
         </div>
@@ -128,11 +128,11 @@ function renderSidebar(activePage) {
 
 function renderTopBar(title) {
     const user = currentUser();
-    return `<header class="sticky top-0 z-30 flex justify-between items-center w-full px-8 py-4 bg-[#F1F4F6]/80 backdrop-blur-md">
-        <div class="flex items-center gap-8">
-            <h2 class="text-2xl font-bold tracking-tighter text-[#4E6073] font-headline">${title}</h2>
+    return `<header class="sticky top-0 z-30 flex justify-between items-center w-full px-4 md:px-8 py-4 bg-[#F1F4F6]/80 backdrop-blur-md gap-4">
+        <div class="flex items-center min-w-0">
+            <h2 class="text-xl md:text-2xl font-bold tracking-tighter text-[#4E6073] font-headline truncate">${title}</h2>
         </div>
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-4 flex-shrink-0">
             <button class="p-2 rounded-full hover:bg-[#E3E9EC] transition-colors"><span class="material-symbols-outlined text-[#4E6073]">notifications</span></button>
             <div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-primary font-bold text-sm">${user ? getInitials(user.name) : '??'}</div>
         </div>
@@ -143,8 +143,8 @@ function renderTopBar(title) {
 function renderLogin() {
     const app = document.getElementById('app');
     app.innerHTML = `
-    <header class="bg-[#F1F4F6]/80 backdrop-blur-md sticky top-0 z-50 flex justify-between items-center w-full px-8 py-4">
-        <div class="text-2xl font-bold tracking-tighter text-[#4E6073] font-headline">Overdoze Craft</div>
+    <header class="bg-[#F1F4F6]/80 backdrop-blur-md sticky top-0 z-50 flex justify-between items-center w-full px-4 md:px-8 py-4 gap-4">
+        <div class="text-xl md:text-2xl font-bold tracking-tighter text-[#4E6073] font-headline truncate">Overdoze Craft Coffee</div>
         <div class="hidden md:flex gap-8 items-center">
             <nav class="flex gap-6 font-headline tracking-tight font-semibold text-[#586064]">
                 <a class="hover:text-[#4E6073] transition-colors" href="#">Experience</a>
@@ -230,9 +230,9 @@ async function handleLogin(e) {
 function renderRegister() {
     const app = document.getElementById('app');
     app.innerHTML = `
-    <nav class="bg-[#F1F4F6]/80 backdrop-blur-md sticky top-0 z-50 flex justify-between items-center w-full px-8 py-6">
-        <div class="text-2xl font-bold tracking-tighter text-[#4E6073] font-headline">Overdoze Craft</div>
-        <a class="text-sm font-semibold text-primary hover:opacity-70 transition-opacity cursor-pointer" onclick="navigate('login')">← กลับไปหน้า Login</a>
+    <nav class="bg-[#F1F4F6]/80 backdrop-blur-md sticky top-0 z-50 flex justify-between items-center w-full px-4 md:px-8 py-4 md:py-6 gap-2">
+        <div class="text-lg md:text-2xl font-bold tracking-tighter text-[#4E6073] font-headline truncate">Overdoze Craft Coffee</div>
+        <a class="text-xs md:text-sm font-semibold text-primary hover:opacity-70 transition-opacity cursor-pointer whitespace-nowrap flex-shrink-0" onclick="navigate('login')">← กลับไปหน้า Login</a>
     </nav>
     <main class="min-h-[calc(100vh-160px)] flex items-center justify-center px-4 py-12">
         <div class="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
@@ -318,7 +318,7 @@ async function handleRegister(e) {
     const pw2 = document.getElementById('regPassword2').value;
     if (pw !== pw2) { toast('รหัสผ่านไม่ตรงกัน', 'error'); return; }
     const email = document.getElementById('regEmail').value.trim();
-    
+
     const payload = {
         name: document.getElementById('regName').value.trim(),
         email: email,
@@ -326,7 +326,7 @@ async function handleRegister(e) {
         role: document.getElementById('regRole').value,
         password: pw
     };
-    
+
     const res = await AuthAPI.register(payload);
     if (!res.ok) { toast(res.error, 'error'); return; }
     toast('ลงทะเบียนสำเร็จ! รอการอนุมัติจาก Admin', 'success');
@@ -730,7 +730,7 @@ async function renderTimeclock() {
                         <h3 class="text-lg font-bold text-on-surface">เซสชันวันนี้</h3>
                     </div>
                     ${todaySessions.length === 0 ? '<p class="p-8 text-center text-on-surface-variant">ยังไม่มีเซสชันวันนี้</p>' :
-                    todaySessions.reverse().map(s => `
+            todaySessions.reverse().map(s => `
                     <div class="grid grid-cols-3 gap-4 p-6 border-b border-surface-container-high last:border-0">
                         <div><span class="text-xs font-bold text-outline-variant uppercase tracking-widest block mb-1">เข้างาน</span><span class="font-semibold">${fmtTime(s.clockIn)}</span></div>
                         <div><span class="text-xs font-bold text-outline-variant uppercase tracking-widest block mb-1">ออกงาน</span><span class="font-semibold">${fmtTime(s.clockOut)}</span></div>
@@ -809,7 +809,7 @@ async function renderStaffManage() {
                         <span class="text-xs text-on-surface-variant">${staff.length} คน</span>
                     </div>
                     ${staff.length === 0 ? '<p class="p-8 text-center text-on-surface-variant">ยังไม่มีพนักงาน</p>' :
-                    `<div class="overflow-x-auto">
+            `<div class="overflow-x-auto">
                         <table class="w-full">
                             <thead>
                                 <tr class="bg-surface-container-low text-xs font-bold text-on-surface-variant uppercase tracking-widest">
@@ -824,10 +824,10 @@ async function renderStaffManage() {
                             </thead>
                             <tbody>
                                 ${staff.map(s => {
-                                    const sc = sessions.filter(ss => ss.userId === s.id).length;
-                                    const statusClass = s.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : s.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700';
-                                    const statusLabel = s.status === 'approved' ? 'อนุมัติ' : s.status === 'pending' ? 'รออนุมัติ' : 'ปฏิเสธ';
-                                    return `<tr class="border-b border-surface-container-high hover:bg-surface-container-low/50 transition-colors">
+                const sc = sessions.filter(ss => ss.userId === s.id).length;
+                const statusClass = s.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : s.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700';
+                const statusLabel = s.status === 'approved' ? 'อนุมัติ' : s.status === 'pending' ? 'รออนุมัติ' : 'ปฏิเสธ';
+                return `<tr class="border-b border-surface-container-high hover:bg-surface-container-low/50 transition-colors">
                                         <td class="px-6 py-4">
                                             <div class="flex items-center gap-3">
                                                 <div class="w-9 h-9 rounded-full bg-primary-container/40 flex items-center justify-center font-bold text-primary text-xs">${getInitials(s.name)}</div>
@@ -843,7 +843,7 @@ async function renderStaffManage() {
                                             ${s.status === 'pending' ? `<button onclick="approveUser('${s.id}')" class="text-xs font-bold text-primary hover:underline mr-2">อนุมัติ</button><button onclick="rejectUser('${s.id}')" class="text-xs font-bold text-error hover:underline">ปฏิเสธ</button>` : `<button onclick="deleteUser('${s.id}')" class="text-xs font-bold text-error/60 hover:text-error transition-colors">ลบ</button>`}
                                         </td>
                                     </tr>`;
-                                }).join('')}
+            }).join('')}
                             </tbody>
                         </table>
                     </div>`}
@@ -866,9 +866,9 @@ async function deleteUser(userId) {
 async function renderSchedule() {
     const user = currentUser();
     const isAdmin = user.role === 'admin';
-    const [staffRes, sessRes] = isAdmin ? 
-        await Promise.all([AdminAPI.getStaff(), AdminAPI.getSessions()]) : 
-        await Promise.all([{ok:true, data:[user]}, ShiftsAPI.getHistory()]);
+    const [staffRes, sessRes] = isAdmin ?
+        await Promise.all([AdminAPI.getStaff(), AdminAPI.getSessions()]) :
+        await Promise.all([{ ok: true, data: [user] }, ShiftsAPI.getHistory()]);
     const users = staffRes.ok ? (staffRes.data.staff || staffRes.data.data || staffRes.data || []) : [user];
     const sessions = sessRes.ok ? (sessRes.data.history || sessRes.data.sessions || sessRes.data.data || sessRes.data || []) : [];
     const now = new Date();
@@ -926,8 +926,8 @@ async function renderSchedule() {
                         <span class="text-xs text-on-surface-variant font-medium">${d.sessions.length} เซสชัน • ${fmtDuration(d.sessions.reduce((a, s) => a + (s.duration || 0), 0))}</span>
                     </div>
                     ${d.sessions.map(s => {
-                        const staffUser = users.find(u => u.id === s.userId);
-                        return `<div class="flex items-center justify-between p-4 border-b border-surface-container-high/50 last:border-0 hover:bg-surface-container-low/30 transition-colors">
+        const staffUser = users.find(u => u.id === s.userId);
+        return `<div class="flex items-center justify-between p-4 border-b border-surface-container-high/50 last:border-0 hover:bg-surface-container-low/30 transition-colors">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-full bg-primary-container/30 flex items-center justify-center text-primary text-xs font-bold">${staffUser ? getInitials(staffUser.name) : '??'}</div>
                                 <div>
@@ -940,7 +940,7 @@ async function renderSchedule() {
                                 <span class="text-sm font-bold text-primary">${fmtDuration(s.duration || 0)}</span>
                             </div>
                         </div>`;
-                    }).join('')}
+    }).join('')}
                 </div>`).join('')}
 
                 ${weekDays.every(d => d.sessions.length === 0) ? `
@@ -1080,10 +1080,10 @@ async function saveSettings() {
     const user = currentUser();
     const name = document.getElementById('settingName').value.trim();
     const phone = document.getElementById('settingPhone').value.trim();
-    
+
     // Fallback if backend API doesn't exist for this
     const res = await apiFetch(`/auth/profile`, { method: 'PUT', body: JSON.stringify({ name, phone }) });
-    if(res.ok) {
+    if (res.ok) {
         user.name = name || user.name;
         user.phone = phone || user.phone;
         DB.setOne('currentUser', user);
@@ -1100,9 +1100,9 @@ async function changePassword() {
     const newPw2 = document.getElementById('newPw2').value;
     if (newPw.length < 4) { toast('รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร', 'error'); return; }
     if (newPw !== newPw2) { toast('รหัสผ่านใหม่ไม่ตรงกัน', 'error'); return; }
-    
+
     const res = await apiFetch(`/auth/password`, { method: 'PUT', body: JSON.stringify({ currentPassword: oldPw, newPassword: newPw }) });
-    if(res.ok) {
+    if (res.ok) {
         toast('เปลี่ยนรหัสผ่านเรียบร้อย!', 'success');
     } else {
         toast(res.error || 'Server missing /auth/password endpoint', 'error');
