@@ -140,4 +140,22 @@ h1, h2, h3, .brand-font, .headline-font {
 @media (max-width: 767px) {
     .sidebar-desktop { display: none !important; }
     .main-with-sidebar { margin-left: 0 !important; }
+    
+    /* Mobile Nav Active State */
+    .mobile-nav a.text-primary {
+        opacity: 1;
+    }
+    .mobile-nav a.text-primary .material-symbols-outlined {
+        font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 40;
+    }
+}
+
+/* Bottom Nav Glassmorphism and Shadow */
+.mobile-nav {
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
+}
+
+/* Ensure material symbols look good in bottom nav */
+.mobile-nav .material-symbols-outlined {
+    font-size: 26px;
 }
