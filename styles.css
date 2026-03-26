@@ -1,0 +1,143 @@
+/* ===== Overdoze Craft Coffee — Design System ===== */
+
+/* Material Symbols */
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+.material-symbols-outlined.filled {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Base Typography */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f8f9fa;
+    margin: 0;
+    overflow-x: hidden;
+}
+h1, h2, h3, .brand-font, .headline-font {
+    font-family: 'Manrope', sans-serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #abb3b7; border-radius: 999px; }
+
+/* Page Transitions */
+#app {
+    animation: pageIn 0.35s ease-out;
+}
+@keyframes pageIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Pulse dot for "On Shift" */
+@keyframes pulseDot {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(78, 96, 115, 0.4); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(78, 96, 115, 0); }
+}
+.pulse-dot {
+    animation: pulseDot 2s ease-in-out infinite;
+}
+
+/* Timer tick */
+@keyframes timerPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+}
+.timer-active {
+    animation: timerPulse 2s ease-in-out infinite;
+}
+
+/* Toast notification */
+.toast {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 9999;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    transform: translateX(120%);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.toast.show {
+    transform: translateX(0);
+}
+.toast.success { background: linear-gradient(135deg, #10b981, #059669); }
+.toast.error   { background: linear-gradient(135deg, #9f403d, #752121); }
+.toast.info    { background: linear-gradient(135deg, #4e6073, #425467); }
+
+/* Decorative blobs */
+.bg-blob {
+    position: fixed;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: -1;
+    filter: blur(120px);
+}
+
+/* Sidebar active indicator */
+.nav-link.active {
+    background: white;
+    color: #4E6073;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    transform: translateX(4px);
+}
+
+/* Segmented toggle */
+.seg-toggle-btn.active {
+    background: #ffffff;
+    color: #4e6073;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Stat card hover */
+.stat-card {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+}
+
+/* Registration card */
+.reg-card {
+    transition: transform 0.2s ease;
+}
+.reg-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Clock circle */
+.clock-circle {
+    transition: box-shadow 0.4s ease;
+}
+.clock-circle.active {
+    box-shadow: 0 0 60px rgba(78, 96, 115, 0.12), 0 12px 40px rgba(78, 96, 115, 0.08);
+}
+
+/* Button press */
+.btn-press {
+    transition: all 0.15s ease;
+}
+.btn-press:active {
+    transform: scale(0.96);
+}
+
+/* Selection */
+::selection {
+    background: #d1e4fb;
+    color: #415366;
+}
+
+/* Responsive sidebar hide */
+@media (max-width: 767px) {
+    .sidebar-desktop { display: none !important; }
+    .main-with-sidebar { margin-left: 0 !important; }
+}
