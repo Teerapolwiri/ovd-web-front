@@ -1,0 +1,293 @@
+/* ===== Overdoze Craft Coffee — Design System ===== */
+/* ===== v2.0 — Navy Blue Theme + Mobile Logout Fix ===== */
+
+/* Material Symbols */
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.material-symbols-outlined.filled {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* ── Base ── */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #EEF2F7;
+    margin: 0;
+    overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+.brand-font,
+.headline-font {
+    font-family: 'Manrope', sans-serif;
+}
+
+/* ── Safe Area (iOS notch / home bar) ── */
+.pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 12px);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 999px;
+}
+
+/* ── Page Transition ── */
+#app {
+    animation: pageIn 0.35s ease-out;
+}
+
+@keyframes pageIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ── Pulse dot (On Shift) ── */
+@keyframes pulseDot {
+
+    0%,
+    100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(30, 64, 175, 0.4);
+    }
+
+    50% {
+        opacity: 0.7;
+        box-shadow: 0 0 0 6px rgba(30, 64, 175, 0);
+    }
+}
+
+.pulse-dot {
+    animation: pulseDot 2s ease-in-out infinite;
+}
+
+/* ── Timer tick ── */
+@keyframes timerPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.02);
+    }
+}
+
+.timer-active {
+    animation: timerPulse 2s ease-in-out infinite;
+}
+
+/* ── Toast ── */
+.toast {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 9999;
+    padding: 14px 24px;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    transform: translateX(120%);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    max-width: calc(100vw - 48px);
+}
+
+.toast.show {
+    transform: translateX(0);
+}
+
+.toast.success {
+    background: linear-gradient(135deg, #059669, #047857);
+}
+
+.toast.error {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+.toast.info {
+    background: linear-gradient(135deg, #1e40af, #1d4ed8);
+}
+
+/* ── Decorative blobs ── */
+.bg-blob {
+    position: fixed;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: -1;
+    filter: blur(120px);
+}
+
+/* ── Glassmorphism ── */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.glass-nav {
+    background: rgba(238, 242, 247, 0.75);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* ── Sidebar ── */
+.sidebar-desktop {
+    box-shadow: 4px 0 32px rgba(15, 23, 42, 0.04);
+    border-right: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.nav-link {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-link.active {
+    background: #FFFFFF;
+    color: #1e3a8a;
+    box-shadow: 0 4px 16px rgba(30, 58, 138, 0.08), 0 1px 3px rgba(30, 58, 138, 0.05);
+    transform: translateY(-1px) scale(1.01);
+    font-weight: 800;
+}
+
+/* ── Stat cards ── */
+.stat-card {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 32px rgba(30, 58, 138, 0.08);
+}
+
+/* ── Registration card ── */
+.reg-card {
+    transition: transform 0.2s ease;
+}
+
+.reg-card:hover {
+    transform: translateY(-2px);
+}
+
+/* ── Clock circle ── */
+.clock-circle {
+    transition: box-shadow 0.4s ease;
+}
+
+.clock-circle.active {
+    box-shadow: 0 0 80px rgba(30, 64, 175, 0.15), 0 16px 48px rgba(30, 64, 175, 0.10);
+}
+
+/* ── Button press ── */
+.btn-press {
+    transition: all 0.15s ease;
+}
+
+.btn-press:active {
+    transform: scale(0.96);
+}
+
+/* ── Segmented toggle ── */
+.seg-toggle-btn.active {
+    background: #ffffff;
+    color: #1e3a8a;
+    box-shadow: 0 1px 4px rgba(30, 58, 138, 0.1);
+}
+
+/* ── Selection ── */
+::selection {
+    background: #bfdbfe;
+    color: #1e3a8a;
+}
+
+/* ══════════════════════════════════════════
+   MOBILE — Bottom Nav
+══════════════════════════════════════════ */
+
+/* Hide sidebar on mobile */
+@media (max-width: 767px) {
+    .sidebar-desktop {
+        display: none !important;
+    }
+
+    .main-with-sidebar {
+        margin-left: 0 !important;
+    }
+
+    .mobile-nav a.text-primary {
+        opacity: 1;
+    }
+
+    .mobile-nav a.text-primary .material-symbols-outlined {
+        font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 40;
+    }
+}
+
+/* Bottom nav glassmorphism */
+.mobile-nav {
+    box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.07);
+}
+
+.mobile-nav .material-symbols-outlined {
+    font-size: 26px;
+}
+
+/* ── Mobile Logout Button ──
+   ปุ่ม logout ที่เพิ่มเข้ามาใน mobile nav (ปุ่มสุดท้าย)
+   ใช้สีแดงให้ชัดเจน และมี active state */
+.mobile-nav-logout {
+    color: #dc2626;
+    opacity: 0.75;
+    transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.mobile-nav-logout:hover,
+.mobile-nav-logout:active {
+    opacity: 1;
+    background: rgba(220, 38, 38, 0.08);
+    border-radius: 12px;
+}
+
+/* ══════════════════════════════════════════
+   BACKGROUND — Premium Navy Gradient
+══════════════════════════════════════════ */
+body {
+    background: linear-gradient(160deg, #EEF2F7 0%, #E8EDF5 50%, #EBF0F8 100%);
+    min-height: 100vh;
+}
+
+/* ── Subtle navy grid texture overlay ── */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    background-image:
+        linear-gradient(rgba(30, 58, 138, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(30, 58, 138, 0.015) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+}

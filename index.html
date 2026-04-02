@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Overdoze Craft Coffee | Staff Portal</title>
+    <meta name="description"
+        content="Overdoze Craft Coffee — Part-time staff clock-in management portal. Register, clock in/out, and manage your shifts." />
+    <script src="https://cdn.tailwindcss.com?/*plugins=forms,*/container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Inter:wght@100..900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-error-container": "#752121",
+                        "on-primary-container": "#415366",
+                        "on-primary": "#f4f8ff",
+                        "surface-dim": "#d1dce0",
+                        "on-secondary": "#f4fafe",
+                        "tertiary-fixed": "#eaf1f9",
+                        "tertiary-dim": "#4d545a",
+                        "surface-variant": "#dbe4e7",
+                        "tertiary-container": "#eaf1f9",
+                        "on-secondary-fixed": "#3a4044",
+                        "error-container": "#fe8983",
+                        "outline-variant": "#abb3b7",
+                        "secondary-fixed-dim": "#cfd5d9",
+                        "secondary-dim": "#4e5457",
+                        "surface-container-high": "#e3e9ec",
+                        "background": "#f8f9fa",
+                        "on-primary-fixed-variant": "#4b5d70",
+                        "secondary-container": "#dde3e7",
+                        "on-background": "#2b3437",
+                        "outline": "#737c7f",
+                        "error-dim": "#4e0309",
+                        "surface-bright": "#f8f9fa",
+                        "surface-container-highest": "#dbe4e7",
+                        "primary-dim": "#425467",
+                        "primary-container": "#d1e4fb",
+                        "on-tertiary-fixed": "#42494f",
+                        "inverse-surface": "#0c0f10",
+                        "on-surface-variant": "#586064",
+                        "surface": "#f8f9fa",
+                        "inverse-on-surface": "#9b9d9e",
+                        "on-tertiary-container": "#545b62",
+                        "error": "#9f403d",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-fixed": "#d1e4fb",
+                        "on-surface": "#2b3437",
+                        "primary-fixed-dim": "#c3d6ed",
+                        "inverse-primary": "#ccdff6",
+                        "surface-container-low": "#f1f4f6",
+                        "surface-container": "#eaeff1",
+                        "secondary-fixed": "#dde3e7",
+                        "on-tertiary": "#f5f9ff",
+                        "on-tertiary-fixed-variant": "#5e656c",
+                        "surface-tint": "#4e6073",
+                        "primary": "#4e6073",
+                        "tertiary-fixed-dim": "#dce3eb",
+                        "secondary": "#5a6064",
+                        "on-secondary-container": "#4c5356",
+                        "on-error": "#fff7f6",
+                        "on-primary-fixed": "#2f4153",
+                        "tertiary": "#596067",
+                        "on-secondary-fixed-variant": "#565c60"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+
+<body class="text-on-surface">
+
+    <!-- Toast Container -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Decorative Blobs -->
+    <div class="bg-blob" style="top:-10%;left:-5%;width:40%;height:40%;background:rgba(209,228,251,0.2);"></div>
+    <div class="bg-blob" style="top:60%;right:-10%;width:30%;height:50%;background:rgba(234,241,249,0.3);"></div>
+
+    <!-- App Mount Point -->
+    <div id="app"></div>
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
