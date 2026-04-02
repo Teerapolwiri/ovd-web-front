@@ -422,6 +422,10 @@ async function renderStaff() {
     const activeRes = await ShiftsAPI.getActive();
     const active = activeRes.ok && (activeRes.data.session || activeRes.data.active) ? (activeRes.data.session || activeRes.data.active) : null;
     DB.setOne('activeSession', active);
+    const schedRes = await ScheduleAPI.getMine();
+    const mySchedules = schedRes.ok ? (schedRes.data.schedules || schedRes.data || []) : [];
+    const todayStr = new Date().toISOString().split('T')[0];
+    const upcomingShifts = mySchedules.filter(a => a.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)).slice(0, 3);
     const now = new Date();
     const greeting = now.getHours() < 12 ? 'สวัสดีตอนเช้า' : now.getHours() < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
     const dateStr = now.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -487,13 +491,41 @@ async function renderStaff() {
                                 <div class="flex justify-between"><span class="text-sm text-on-surface-variant">ชั่วโมงรวม</span><span class="font-bold">${fmtDuration(sessions.reduce((a, s) => a + (s.duration || 0), 0))}</span></div>
                             </div>
                         </div>
+                        ${upcomingShifts.length > 0 ? `
+                        <div class="bg-primary-container/20 rounded-2xl p-6 border border-primary-container/40">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center gap-3">
+                                    <span class="material-symbols-outlined text-primary">upcoming</span>
+                                    <h3 class="text-lg font-headline font-bold text-primary">กะงานถัดไป</h3>
+                                </div>
+                                <a onclick="navigate('schedule')" class="text-xs text-primary font-bold hover:opacity-70 cursor-pointer">ดูทั้งหมด →</a>
+                            </div>
+                            <div class="space-y-3">
+                                ${upcomingShifts.map(a => {
+                                    const d = new Date(a.date + 'T00:00:00');
+                                    const isToday = a.date === todayStr;
+                                    const dateLabel = isToday ? 'วันนี้' : d.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' });
+                                    return `<div class="bg-white/70 rounded-xl p-3 flex items-center gap-3">
+                                        <div class="w-9 h-9 rounded-xl ${isToday ? 'bg-primary' : 'bg-primary-container'} flex items-center justify-center flex-shrink-0">
+                                            <span class="material-symbols-outlined ${isToday ? 'text-on-primary' : 'text-primary'} text-lg">event</span>
+                                        </div>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-sm font-bold text-on-surface">${dateLabel}</p>
+                                            <p class="text-xs text-on-surface-variant">${a.startTime} – ${a.endTime}</p>
+                                            ${a.detail ? `<p class="text-xs text-tertiary truncate mt-0.5">${a.detail}</p>` : ''}
+                                        </div>
+                                        ${isToday ? '<span class="flex-shrink-0 w-2 h-2 rounded-full bg-primary pulse-dot"></span>' : ''}
+                                    </div>`;
+                                }).join('')}
+                            </div>
+                        </div>` : `
                         <div class="bg-tertiary-container/30 rounded-2xl p-6 border border-tertiary-container/50">
                             <div class="flex items-center gap-3 mb-4">
                                 <span class="material-symbols-outlined text-tertiary">assignment</span>
                                 <h3 class="text-lg font-headline font-bold text-tertiary">โน้ตกะงาน</h3>
                             </div>
                             <p class="text-sm text-on-tertiary-container leading-relaxed">ตรวจสอบเครื่องชงกาแฟก่อนเปิดร้านทุกครั้ง และเช็คสต็อกนมสดก่อนเริ่มงาน</p>
-                        </div>
+                        </div>`}
                     </div>
                     <div class="md:col-span-12 mt-4">
                         <h3 class="text-2xl font-headline font-bold text-primary mb-6 px-2">ประวัติการทำงาน</h3>
@@ -1095,45 +1127,76 @@ async function deleteUser(userId) {
 
 // ══════════════════ SCHEDULE PAGE (Both roles) ══════════════════
 
+// ── Mobile day-detail: shows both assignments and sessions ──
 function scheduleRenderDayDetail(weekDays, users, selectedIdx) {
     const d = weekDays[selectedIdx];
     if (!d) return '';
-    if (d.sessions.length === 0) {
+    const isAdmin = currentUser()?.role === 'admin';
+    const hasContent = d.assignments.length > 0 || d.sessions.length > 0;
+
+    if (!hasContent) {
         return `<div class="bg-surface-container-low rounded-2xl p-10 text-center">
             <span class="material-symbols-outlined text-5xl text-on-surface-variant/30 mb-3 block">event_busy</span>
-            <p class="text-on-surface-variant font-semibold">ไม่มีการทำงานในวันนี้</p>
+            <p class="text-on-surface-variant font-semibold">ไม่มีกะงานในวันนี้</p>
+            ${isAdmin ? `<button onclick="openScheduleModal('${d.dateStr}')" class="mt-4 inline-flex items-center gap-2 bg-primary text-on-primary text-xs font-bold px-4 py-2 rounded-full hover:opacity-90 transition-all">
+                <span class="material-symbols-outlined text-sm">add</span> เพิ่มกะงาน
+            </button>` : ''}
         </div>`;
     }
-    return `<div class="bg-white rounded-2xl shadow-sm border border-outline-variant/10 overflow-hidden">
-        <div class="p-4 border-b border-surface-container-high flex justify-between items-center ${d.isToday ? 'bg-primary-container/20' : ''}">
-            <h3 class="font-bold text-on-surface flex items-center gap-2">
-                ${d.isToday ? '<span class="w-2 h-2 rounded-full bg-primary pulse-dot"></span>' : ''}
-                ${d.fullLabel}
-            </h3>
-            <span class="text-xs text-on-surface-variant font-medium">${d.sessions.length} เซสชัน • ${fmtDuration(d.sessions.reduce((a, s) => a + (s.duration || 0), 0))}</span>
-        </div>
-        ${d.sessions.map(s => {
-        const staffUser = users.find(u => u.id === (s.userId || s.staffId));
-        return `<div class="flex items-center justify-between p-4 border-b border-surface-container-high/50 last:border-0">
-                <div class="flex items-center gap-3 min-w-0">
-                    <div class="w-9 h-9 rounded-full bg-primary-container/30 flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">${staffUser ? getInitials(staffUser.name) : '??'}</div>
-                    <div class="min-w-0">
-                        <p class="font-semibold text-sm truncate">${staffUser ? staffUser.name : 'ไม่ทราบ'}</p>
-                        <p class="text-xs text-on-surface-variant">${staffUser ? (ROLE_LABELS[staffUser.role] || staffUser.role) : ''}</p>
+
+    return `<div class="space-y-3">
+        ${d.assignments.length > 0 ? `
+        <div class="bg-white rounded-2xl shadow-sm border border-outline-variant/10 overflow-hidden">
+            <div class="px-4 py-3 border-b border-surface-container-high flex justify-between items-center bg-primary-container/10">
+                <span class="text-xs font-bold uppercase tracking-widest text-primary">กะงาน</span>
+                ${isAdmin ? `<button onclick="openScheduleModal('${d.dateStr}')" class="text-xs text-primary font-bold flex items-center gap-1 hover:opacity-70">
+                    <span class="material-symbols-outlined text-sm">add</span> เพิ่ม
+                </button>` : ''}
+            </div>
+            ${d.assignments.map(a => {
+                const su = users.find(u => u.id === a.staffId);
+                return `<div class="flex items-center justify-between p-3 border-b border-surface-container-high/40 last:border-0">
+                    <div class="flex items-center gap-2 min-w-0 flex-1">
+                        <div class="w-8 h-8 rounded-full bg-primary-container/50 flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">${su ? getInitials(su.name) : '??'}</div>
+                        <div class="min-w-0">
+                            <p class="font-semibold text-sm truncate">${su ? su.name : a.staffName || 'ไม่ทราบ'}</p>
+                            <p class="text-xs text-on-surface-variant">${a.startTime} – ${a.endTime}</p>
+                            ${a.detail ? `<p class="text-xs text-tertiary truncate">${a.detail}</p>` : ''}
+                        </div>
                     </div>
-                </div>
-                <div class="flex flex-col items-end ml-3 flex-shrink-0">
-                    <span class="text-xs font-bold text-on-surface-variant">${fmtTime(s.clockIn)} – ${fmtTime(s.clockOut)}</span>
-                    <span class="text-sm font-bold text-primary">${fmtDuration(s.duration || 0)}</span>
-                    <span class="text-xs text-outline-variant">฿${Math.round((s.duration || 0) / 60 * 35).toLocaleString()}</span>
-                </div>
-            </div>`;
-    }).join('')}
+                    ${isAdmin ? `<button onclick="deleteScheduleEntry('${a.id}')" class="w-7 h-7 flex items-center justify-center rounded-full text-error/50 hover:text-error hover:bg-error/10 transition-all flex-shrink-0">
+                        <span class="material-symbols-outlined text-[16px]">delete</span>
+                    </button>` : ''}
+                </div>`;
+            }).join('')}
+        </div>` : (isAdmin ? `<div class="text-center pt-2">
+            <button onclick="openScheduleModal('${d.dateStr}')" class="inline-flex items-center gap-2 bg-primary/10 text-primary text-xs font-bold px-4 py-2 rounded-full hover:bg-primary/20 transition-all">
+                <span class="material-symbols-outlined text-sm">add</span> เพิ่มกะงาน
+            </button>
+        </div>` : '')}
+        ${d.sessions.length > 0 ? `
+        <div class="bg-white rounded-2xl shadow-sm border border-outline-variant/10 overflow-hidden">
+            <div class="px-4 py-3 border-b border-surface-container-high">
+                <span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">ประวัติการทำงาน</span>
+            </div>
+            ${d.sessions.map(s => {
+                const su = users.find(u => u.id === (s.userId || s.staffId));
+                return `<div class="flex items-center justify-between p-3 border-b border-surface-container-high/40 last:border-0">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <div class="w-8 h-8 rounded-full bg-secondary-container/50 flex items-center justify-center text-secondary text-xs font-bold flex-shrink-0">${su ? getInitials(su.name) : '??'}</div>
+                        <div class="min-w-0">
+                            <p class="font-semibold text-sm truncate">${su ? su.name : 'ไม่ทราบ'}</p>
+                            <p class="text-xs text-on-surface-variant">${fmtTime(s.clockIn || s.clock_in)} – ${fmtTime(s.clockOut || s.clock_out)}</p>
+                        </div>
+                    </div>
+                    <span class="text-sm font-bold text-primary ml-3">${fmtDuration(s.duration || 0)}</span>
+                </div>`;
+            }).join('')}
+        </div>` : ''}
     </div>`;
 }
 
 function scheduleSelectDay(idx) {
-    // Update chip states
     document.querySelectorAll('.schedule-day-chip').forEach((el, i) => {
         const isSelected = i === idx;
         const isToday = el.dataset.today === '1';
@@ -1149,7 +1212,6 @@ function scheduleSelectDay(idx) {
             el.querySelector('.chip-label').classList.add('text-on-surface-variant');
         }
     });
-    // Update detail panel
     const detail = document.getElementById('schedule-day-detail');
     if (detail) {
         detail.innerHTML = window._scheduleWeekDaysCache
@@ -1158,14 +1220,139 @@ function scheduleSelectDay(idx) {
     }
 }
 
+// ── Schedule modal (Admin) ──
+async function openScheduleModal(dateStr) {
+    const modal = document.getElementById('scheduleModal');
+    if (!modal) return;
+    document.getElementById('schedModalDate').value = dateStr || new Date().toISOString().split('T')[0];
+    document.getElementById('schedModalStart').value = '09:00';
+    document.getElementById('schedModalEnd').value = '17:00';
+    document.getElementById('schedModalDetail').value = '';
+
+    // Show modal immediately with loading state
+    const staffSel = document.getElementById('schedModalStaff');
+    staffSel.innerHTML = '<option value="">กำลังโหลด...</option>';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    // Always fetch fresh to avoid stale/mismatched cache
+    const res = await AdminAPI.getStaff();
+    if (!res.ok) {
+        staffSel.innerHTML = `<option value="">โหลดไม่สำเร็จ</option>`;
+        toast(res.error || 'โหลดพนักงานไม่สำเร็จ', 'error');
+        return;
+    }
+
+    const raw = res.data.staff || res.data.data || res.data;
+    const allUsers = Array.isArray(raw) ? raw : [];
+    window._scheduleUsersCache = allUsers;
+
+    const staffList = allUsers.filter(u => u.role !== 'admin');
+    if (staffList.length === 0) {
+        staffSel.innerHTML = `<option value="">ไม่พบพนักงาน (total: ${allUsers.length})</option>`;
+        return;
+    }
+
+    staffSel.innerHTML = '<option value="">-- เลือกพนักงาน --</option>' +
+        staffList.map(u => {
+            const statusTag = u.status && u.status !== 'approved' ? ` [${u.status}]` : '';
+            return `<option value="${u.id}">${u.name} (${ROLE_LABELS[u.role] || u.role})${statusTag}</option>`;
+        }).join('');
+}
+
+function closeScheduleModal() {
+    const modal = document.getElementById('scheduleModal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+}
+
+async function submitScheduleEntry() {
+    const staffId = document.getElementById('schedModalStaff').value;
+    const date = document.getElementById('schedModalDate').value;
+    const startTime = document.getElementById('schedModalStart').value;
+    const endTime = document.getElementById('schedModalEnd').value;
+    const detail = document.getElementById('schedModalDetail').value.trim();
+    if (!staffId) { toast('กรุณาเลือกพนักงาน', 'error'); return; }
+    if (!date) { toast('กรุณาเลือกวันที่', 'error'); return; }
+    if (!startTime || !endTime) { toast('กรุณาระบุเวลา', 'error'); return; }
+    const users = window._scheduleUsersCache || [];
+    const staffUser = users.find(u => u.id === staffId);
+    const res = await ScheduleAPI.create({ staffId, staffName: staffUser ? staffUser.name : '', date, startTime, endTime, detail, createdBy: currentUser()?.id });
+    if (!res.ok) { toast(res.error || 'เกิดข้อผิดพลาด', 'error'); return; }
+    toast(`มอบหมายงานให้ ${staffUser ? staffUser.name : ''} เรียบร้อย!`, 'success');
+    closeScheduleModal();
+    await renderSchedule();
+}
+
+async function deleteScheduleEntry(id) {
+    if (!confirm('ต้องการลบการมอบหมายงานนี้?')) return;
+    const res = await ScheduleAPI.remove(id);
+    if (!res.ok) { toast(res.error || 'เกิดข้อผิดพลาด', 'error'); return; }
+    toast('ลบการมอบหมายงานเรียบร้อย', 'info');
+    await renderSchedule();
+}
+
+// ── Render the schedule modal HTML (inserted once into DOM) ──
+function renderScheduleModal() {
+    return `
+    <div id="scheduleModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onclick="if(event.target===this)closeScheduleModal()">
+        <div class="bg-surface-container-lowest rounded-3xl shadow-2xl w-full max-w-lg p-8 relative">
+            <button onclick="closeScheduleModal()" class="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-all text-on-surface-variant">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+            <div class="mb-6">
+                <span class="text-xs font-bold uppercase tracking-[0.2em] text-primary/60 mb-1 block">Admin</span>
+                <h2 class="text-2xl font-headline font-extrabold text-primary">มอบหมายกะงาน</h2>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1 mb-1.5 block">พนักงาน</label>
+                    <select id="schedModalStaff" class="w-full bg-surface-container-high border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all text-sm">
+                        <option value="">-- เลือกพนักงาน --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1 mb-1.5 block">วันที่</label>
+                    <input id="schedModalDate" type="date" class="w-full bg-surface-container-high border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all text-sm"/>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1 mb-1.5 block">เวลาเริ่ม</label>
+                        <input id="schedModalStart" type="time" class="w-full bg-surface-container-high border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all text-sm"/>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1 mb-1.5 block">เวลาสิ้นสุด</label>
+                        <input id="schedModalEnd" type="time" class="w-full bg-surface-container-high border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all text-sm"/>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1 mb-1.5 block">รายละเอียด / หมายเหตุ</label>
+                    <textarea id="schedModalDetail" rows="3" placeholder="เช่น เตรียมบาร์, ดูแลหน้าร้าน..." class="w-full bg-surface-container-high border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all text-sm resize-none"></textarea>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button onclick="closeScheduleModal()" class="flex-1 py-3.5 rounded-2xl bg-surface-container-high text-on-surface font-bold hover:bg-surface-container-highest transition-all">ยกเลิก</button>
+                <button onclick="submitScheduleEntry()" class="flex-1 py-3.5 rounded-2xl bg-primary text-on-primary font-bold hover:opacity-90 shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-sm">send</span> บันทึกและส่ง
+                </button>
+            </div>
+        </div>
+    </div>`;
+}
+
 async function renderSchedule() {
     const user = currentUser();
     const isAdmin = user.role === 'admin';
-    const [staffRes, sessRes] = isAdmin ?
-        await Promise.all([AdminAPI.getStaff(), AdminAPI.getSessions()]) :
-        await Promise.all([{ ok: true, data: [user] }, ShiftsAPI.getHistory()]);
+
+    const [staffRes, sessRes, schedRes] = await Promise.all([
+        isAdmin ? AdminAPI.getStaff() : Promise.resolve({ ok: true, data: [user] }),
+        isAdmin ? AdminAPI.getSessions() : ShiftsAPI.getHistory(),
+        isAdmin ? ScheduleAPI.getAll() : ScheduleAPI.getMine()
+    ]);
+
     const users = staffRes.ok ? (staffRes.data.staff || staffRes.data.data || staffRes.data || []) : [user];
     const sessions = sessRes.ok ? (sessRes.data.history || sessRes.data.sessions || sessRes.data.data || sessRes.data || []) : [];
+    const schedules = schedRes.ok ? (schedRes.data.schedules || schedRes.data || []) : [];
+
     const now = new Date();
     const weekDays = [];
     const startOfWeek = new Date(now);
@@ -1174,27 +1361,36 @@ async function renderSchedule() {
     for (let i = 0; i < 7; i++) {
         const d = new Date(startOfWeek);
         d.setDate(startOfWeek.getDate() + i);
-        const dayStr = d.toDateString();
-        const daySessions = sessions.filter(s => new Date(s.clockIn).toDateString() === dayStr);
+        const dateStr = d.toISOString().split('T')[0];
+        const clockDateStr = d.toDateString();
+        const daySessions = sessions.filter(s => new Date(s.clockIn || s.clock_in).toDateString() === clockDateStr);
+        const dayAssignments = schedules.filter(a => a.date === dateStr);
         weekDays.push({
-            date: d,
+            date: d, dateStr,
             label: d.toLocaleDateString('th-TH', { weekday: 'short' }),
             fullLabel: d.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'short' }),
             day: d.getDate(),
             isToday: d.toDateString() === now.toDateString(),
-            sessions: daySessions
+            sessions: daySessions,
+            assignments: dayAssignments
         });
     }
 
-    // Cache for use in scheduleSelectDay
     window._scheduleWeekDaysCache = weekDays;
     window._scheduleUsersCache = users;
 
     const todayIdx = weekDays.findIndex(d => d.isToday);
     const defaultMobileIdx = todayIdx >= 0 ? todayIdx : 0;
 
+    // ── Upcoming assignments for staff view ──
+    const upcomingAssignments = schedules
+        .filter(a => a.date >= now.toISOString().split('T')[0])
+        .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
+        .slice(0, 10);
+
     const app = document.getElementById('app');
     app.innerHTML = `${renderSidebar('schedule')} ${renderMobileNav('schedule')}
+    ${isAdmin ? renderScheduleModal() : ''}
     <main class="main-with-sidebar flex-1 md:ml-72 flex flex-col min-h-screen pb-20 md:pb-0">
         ${renderTopBar('ตารางงาน')}
         <section class="flex-1">
@@ -1202,21 +1398,117 @@ async function renderSchedule() {
             <!-- ── DESKTOP LAYOUT (md+) ── -->
             <div class="hidden md:block p-8">
                 <div class="max-w-6xl mx-auto">
-                    <div class="mb-10">
-                        <span class="text-xs font-bold uppercase tracking-[0.2em] text-primary/60 mb-2 block">Schedule</span>
-                        <h1 class="text-4xl font-headline font-extrabold tracking-tighter text-primary">ตารางงานประจำสัปดาห์</h1>
-                        <p class="text-on-surface-variant mt-2">${startOfWeek.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })} — ${weekDays[6].date.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    <div class="mb-8 flex items-end justify-between">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-[0.2em] text-primary/60 mb-2 block">Schedule</span>
+                            <h1 class="text-4xl font-headline font-extrabold tracking-tighter text-primary">ตารางงานประจำสัปดาห์</h1>
+                            <p class="text-on-surface-variant mt-2">${startOfWeek.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })} — ${weekDays[6].date.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                        </div>
+                        ${isAdmin ? `<button onclick="openScheduleModal('${now.toISOString().split('T')[0]}')" class="flex items-center gap-2 bg-primary text-on-primary font-bold px-6 py-3 rounded-2xl hover:opacity-90 shadow-lg shadow-primary/20 transition-all">
+                            <span class="material-symbols-outlined">add</span> เพิ่มกะงาน
+                        </button>` : ''}
                     </div>
+
+                    <!-- Week overview grid -->
                     <div class="grid grid-cols-7 gap-3 mb-8">
                         ${weekDays.map(d => `
                         <div class="rounded-2xl p-4 text-center ${d.isToday ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-container-lowest shadow-sm'} transition-all">
                             <p class="text-xs font-bold uppercase tracking-widest ${d.isToday ? 'text-on-primary/70' : 'text-on-surface-variant'}">${d.label}</p>
                             <p class="text-2xl font-headline font-extrabold mt-1 ${d.isToday ? '' : 'text-on-surface'}">${d.day}</p>
-                            <div class="mt-3">
-                                <span class="text-xs font-bold ${d.isToday ? 'text-on-primary/80' : 'text-primary'}">${d.sessions.length} เซสชัน</span>
+                            <div class="mt-2 flex flex-col gap-1">
+                                ${d.assignments.length > 0 ? `<span class="text-xs font-bold ${d.isToday ? 'text-on-primary/80' : 'text-primary'}">${d.assignments.length} กะ</span>` : ''}
+                                ${d.sessions.length > 0 ? `<span class="text-[10px] font-semibold ${d.isToday ? 'text-on-primary/60' : 'text-on-surface-variant'}">${d.sessions.length} เซสชัน</span>` : ''}
                             </div>
                         </div>`).join('')}
                     </div>
+
+                    ${isAdmin ? `
+                    <!-- Admin: Assignment cards per day -->
+                    ${weekDays.map(d => `
+                    <div class="bg-white rounded-2xl shadow-sm border border-outline-variant/10 mb-4 overflow-hidden">
+                        <div class="p-5 border-b border-surface-container-high flex justify-between items-center ${d.isToday ? 'bg-primary-container/20' : ''}">
+                            <h3 class="font-bold text-on-surface flex items-center gap-2">
+                                ${d.isToday ? '<span class="w-2 h-2 rounded-full bg-primary pulse-dot"></span>' : ''}
+                                ${d.fullLabel}
+                            </h3>
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-on-surface-variant">${d.assignments.length} กะ • ${d.sessions.length} เซสชัน</span>
+                                <button onclick="openScheduleModal('${d.dateStr}')" class="flex items-center gap-1 text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-all">
+                                    <span class="material-symbols-outlined text-sm">add</span> เพิ่ม
+                                </button>
+                            </div>
+                        </div>
+                        ${d.assignments.length === 0 && d.sessions.length === 0 ? `
+                        <div class="p-6 text-center text-on-surface-variant/50 text-sm">ยังไม่มีกะงาน</div>` : ''}
+                        ${d.assignments.map(a => {
+                            const su = users.find(u => u.id === a.staffId);
+                            return `<div class="flex items-center justify-between p-4 border-b border-surface-container-high/50 last:border-0 hover:bg-surface-container-low/30 transition-colors group">
+                                <div class="flex items-center gap-3 min-w-0 flex-1">
+                                    <div class="w-10 h-10 rounded-full bg-primary-container/40 flex items-center justify-center text-primary text-sm font-bold flex-shrink-0">${su ? getInitials(su.name) : '??'}</div>
+                                    <div class="min-w-0">
+                                        <p class="font-semibold text-sm">${su ? su.name : a.staffName || 'ไม่ทราบ'}</p>
+                                        <p class="text-xs text-on-surface-variant">${su ? (ROLE_LABELS[su.role] || su.role) : ''}</p>
+                                        ${a.detail ? `<p class="text-xs text-tertiary mt-0.5">${a.detail}</p>` : ''}
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-4 flex-shrink-0 ml-4">
+                                    <div class="text-right">
+                                        <p class="text-sm font-bold text-on-surface">${a.startTime} – ${a.endTime}</p>
+                                        <span class="inline-block mt-1 px-2 py-0.5 bg-primary-container text-primary text-[10px] font-bold rounded-full uppercase tracking-widest">Assigned</span>
+                                    </div>
+                                    <button onclick="deleteScheduleEntry('${a.id}')" class="w-9 h-9 flex items-center justify-center rounded-full text-error/30 hover:text-error hover:bg-error/10 transition-all opacity-0 group-hover:opacity-100">
+                                        <span class="material-symbols-outlined text-[18px]">delete</span>
+                                    </button>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                        ${d.sessions.length > 0 ? `
+                        <div class="border-t border-surface-container-high/50">
+                            ${d.sessions.map(s => {
+                                const su = users.find(u => u.id === (s.userId || s.staffId));
+                                return `<div class="flex items-center justify-between px-4 py-3 border-b border-surface-container-high/30 last:border-0 bg-surface-container-low/20">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-secondary-container/40 flex items-center justify-center text-secondary text-xs font-bold">${su ? getInitials(su.name) : '??'}</div>
+                                        <div>
+                                            <p class="font-semibold text-sm">${su ? su.name : 'ไม่ทราบ'}</p>
+                                            <p class="text-xs text-on-surface-variant">${fmtTime(s.clockIn || s.clock_in)} – ${fmtTime(s.clockOut || s.clock_out)}</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-4">
+                                        <span class="text-sm font-bold text-on-surface-variant">${fmtDuration(s.duration || 0)}</span>
+                                        <span class="px-2 py-0.5 bg-secondary-container text-on-secondary-container text-[10px] font-bold rounded-full uppercase tracking-widest">Completed</span>
+                                    </div>
+                                </div>`;
+                            }).join('')}
+                        </div>` : ''}
+                    </div>`).join('')}` : `
+                    <!-- Staff: Upcoming assignments -->
+                    ${upcomingAssignments.length > 0 ? `
+                    <div class="bg-white rounded-2xl shadow-sm border border-outline-variant/10 mb-6 overflow-hidden">
+                        <div class="p-5 border-b border-surface-container-high bg-primary-container/10">
+                            <h3 class="font-bold text-primary flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">upcoming</span>
+                                กะงานที่ได้รับมอบหมาย
+                            </h3>
+                        </div>
+                        ${upcomingAssignments.map(a => {
+                            const dateLabel = new Date(a.date + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'short' });
+                            return `<div class="flex items-center justify-between p-4 border-b border-surface-container-high/50 last:border-0 hover:bg-surface-container-low/30 transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center flex-shrink-0">
+                                        <span class="material-symbols-outlined text-primary text-xl">calendar_today</span>
+                                    </div>
+                                    <div>
+                                        <p class="font-semibold text-sm text-on-surface">${dateLabel}</p>
+                                        <p class="text-xs text-on-surface-variant">${a.startTime} – ${a.endTime}</p>
+                                        ${a.detail ? `<p class="text-xs text-tertiary mt-0.5">${a.detail}</p>` : ''}
+                                    </div>
+                                </div>
+                                <span class="px-3 py-1 bg-primary-container text-primary text-xs font-bold rounded-full uppercase tracking-widest">กะงาน</span>
+                            </div>`;
+                        }).join('')}
+                    </div>` : ''}
+                    <!-- Staff: Historical sessions -->
                     ${weekDays.filter(d => d.sessions.length > 0).map(d => `
                     <div class="bg-white rounded-2xl shadow-sm border border-outline-variant/10 mb-4 overflow-hidden">
                         <div class="p-5 border-b border-surface-container-high flex justify-between items-center ${d.isToday ? 'bg-primary-container/20' : ''}">
@@ -1226,48 +1518,39 @@ async function renderSchedule() {
                             </h3>
                             <span class="text-xs text-on-surface-variant font-medium">${d.sessions.length} เซสชัน • ${fmtDuration(d.sessions.reduce((a, s) => a + (s.duration || 0), 0))}</span>
                         </div>
-                        ${d.sessions.map(s => {
-        const staffUser = users.find(u => u.id === (s.userId || s.staffId));
-        return `<div class="flex items-center justify-between p-4 border-b border-surface-container-high/50 last:border-0 hover:bg-surface-container-low/30 transition-colors">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-full bg-primary-container/30 flex items-center justify-center text-primary text-xs font-bold">${staffUser ? getInitials(staffUser.name) : '??'}</div>
-                                    <div>
-                                        <p class="font-semibold text-sm">${staffUser ? staffUser.name : 'ไม่ทราบ'}</p>
-                                        <p class="text-xs text-on-surface-variant">${staffUser ? (ROLE_LABELS[staffUser.role] || staffUser.role) : ''}</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-6">
-                                    <p class="text-[10px] font-bold text-outline-variant uppercase tracking-widest text-right">
-                                        ${fmtTime(s.clockIn)} - ${fmtTime(s.clockOut)}<br/>
-                                        <span class="text-primary text-sm">฿${Math.round((s.duration || 0) / 60 * 35).toLocaleString()}</span>
-                                    </p>
-                                    <span class="text-sm font-bold text-on-surface-variant w-16 text-right">${fmtDuration(s.duration || 0)}</span>
-                                </div>
-                            </div>`;
-    }).join('')}
+                        ${d.sessions.map(s => `
+                        <div class="flex items-center justify-between p-4 border-b border-surface-container-high/50 last:border-0">
+                            <p class="text-xs text-on-surface-variant">${fmtTime(s.clockIn || s.clock_in)} – ${fmtTime(s.clockOut || s.clock_out)}</p>
+                            <div class="flex items-center gap-4">
+                                <span class="text-sm font-bold text-primary">${fmtDuration(s.duration || 0)}</span>
+                                <span class="text-xs text-outline-variant">฿${Math.round((s.duration || 0) / 60 * 35).toLocaleString()}</span>
+                            </div>
+                        </div>`).join('')}
                     </div>`).join('')}
-                    ${weekDays.every(d => d.sessions.length === 0) ? `
+                    ${weekDays.every(d => d.sessions.length === 0) && upcomingAssignments.length === 0 ? `
                     <div class="bg-surface-container-low rounded-2xl p-12 text-center">
                         <span class="material-symbols-outlined text-6xl text-on-surface-variant/30 mb-4">calendar_month</span>
-                        <p class="text-on-surface-variant text-lg">ยังไม่มีข้อมูลการทำงานในสัปดาห์นี้</p>
-                        <p class="text-on-surface-variant/60 text-sm mt-2">ข้อมูลจะแสดงเมื่อมีการลงเวลาเข้า-ออกงาน</p>
+                        <p class="text-on-surface-variant text-lg">ยังไม่มีข้อมูลกะงานในสัปดาห์นี้</p>
                     </div>` : ''}
+                    `}
                 </div>
             </div>
 
             <!-- ── MOBILE LAYOUT ── -->
             <div class="md:hidden flex flex-col min-h-0">
-
-                <!-- Month/Week header -->
-                <div class="px-5 pt-5 pb-3">
-                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary/60">Schedule</p>
-                    <h1 class="text-2xl font-headline font-extrabold tracking-tight text-primary mt-0.5">ตารางงานสัปดาห์นี้</h1>
-                    <p class="text-xs text-on-surface-variant mt-1">
-                        ${startOfWeek.toLocaleDateString('th-TH', { day: 'numeric', month: 'long' })} – ${weekDays[6].date.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}
-                    </p>
+                <div class="px-5 pt-5 pb-3 flex items-start justify-between">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary/60">Schedule</p>
+                        <h1 class="text-2xl font-headline font-extrabold tracking-tight text-primary mt-0.5">ตารางงานสัปดาห์นี้</h1>
+                        <p class="text-xs text-on-surface-variant mt-1">
+                            ${startOfWeek.toLocaleDateString('th-TH', { day: 'numeric', month: 'long' })} – ${weekDays[6].date.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                    </div>
+                    ${isAdmin ? `<button onclick="openScheduleModal('${now.toISOString().split('T')[0]}')" class="flex-shrink-0 flex items-center gap-1 bg-primary text-on-primary text-xs font-bold px-4 py-2.5 rounded-2xl hover:opacity-90 shadow-md shadow-primary/20 mt-2">
+                        <span class="material-symbols-outlined text-sm">add</span> เพิ่ม
+                    </button>` : ''}
                 </div>
 
-                <!-- Horizontal date strip -->
                 <div class="px-5 pb-4">
                     <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide" style="-webkit-overflow-scrolling:touch;scrollbar-width:none;">
                         ${weekDays.map((d, i) => `
@@ -1278,12 +1561,11 @@ async function renderSchedule() {
                             onclick="scheduleSelectDay(${i})">
                             <span class="chip-label text-[10px] font-bold uppercase tracking-widest ${i === defaultMobileIdx ? 'text-on-primary/70' : 'text-on-surface-variant'}">${d.label}</span>
                             <span class="chip-day text-xl font-headline font-extrabold mt-0.5 ${i === defaultMobileIdx ? '' : 'text-on-surface'}">${d.day}</span>
-                            <span class="mt-1 w-1.5 h-1.5 rounded-full ${d.sessions.length > 0 ? (i === defaultMobileIdx ? 'bg-on-primary/60' : 'bg-primary') : 'bg-transparent'}"></span>
+                            <span class="mt-1 w-1.5 h-1.5 rounded-full ${(d.assignments.length > 0 || d.sessions.length > 0) ? (i === defaultMobileIdx ? 'bg-on-primary/60' : 'bg-primary') : 'bg-transparent'}"></span>
                         </button>`).join('')}
                     </div>
                 </div>
 
-                <!-- Selected day detail -->
                 <div id="schedule-day-detail" class="px-5 pb-4">
                     ${scheduleRenderDayDetail(weekDays, users, defaultMobileIdx)}
                 </div>
