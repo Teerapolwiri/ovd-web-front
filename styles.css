@@ -36,6 +36,15 @@ h3,
     width: 6px;
 }
 
+/* ── Hide scrollbar for horizontal strips ── */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
 ::-webkit-scrollbar-track {
     background: transparent;
 }

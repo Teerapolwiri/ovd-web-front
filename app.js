@@ -1094,6 +1094,70 @@ async function deleteUser(userId) {
 }
 
 // ══════════════════ SCHEDULE PAGE (Both roles) ══════════════════
+
+function scheduleRenderDayDetail(weekDays, users, selectedIdx) {
+    const d = weekDays[selectedIdx];
+    if (!d) return '';
+    if (d.sessions.length === 0) {
+        return `<div class="bg-surface-container-low rounded-2xl p-10 text-center">
+            <span class="material-symbols-outlined text-5xl text-on-surface-variant/30 mb-3 block">event_busy</span>
+            <p class="text-on-surface-variant font-semibold">ไม่มีการทำงานในวันนี้</p>
+        </div>`;
+    }
+    return `<div class="bg-white rounded-2xl shadow-sm border border-outline-variant/10 overflow-hidden">
+        <div class="p-4 border-b border-surface-container-high flex justify-between items-center ${d.isToday ? 'bg-primary-container/20' : ''}">
+            <h3 class="font-bold text-on-surface flex items-center gap-2">
+                ${d.isToday ? '<span class="w-2 h-2 rounded-full bg-primary pulse-dot"></span>' : ''}
+                ${d.fullLabel}
+            </h3>
+            <span class="text-xs text-on-surface-variant font-medium">${d.sessions.length} เซสชัน • ${fmtDuration(d.sessions.reduce((a, s) => a + (s.duration || 0), 0))}</span>
+        </div>
+        ${d.sessions.map(s => {
+        const staffUser = users.find(u => u.id === (s.userId || s.staffId));
+        return `<div class="flex items-center justify-between p-4 border-b border-surface-container-high/50 last:border-0">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-9 h-9 rounded-full bg-primary-container/30 flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">${staffUser ? getInitials(staffUser.name) : '??'}</div>
+                    <div class="min-w-0">
+                        <p class="font-semibold text-sm truncate">${staffUser ? staffUser.name : 'ไม่ทราบ'}</p>
+                        <p class="text-xs text-on-surface-variant">${staffUser ? (ROLE_LABELS[staffUser.role] || staffUser.role) : ''}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end ml-3 flex-shrink-0">
+                    <span class="text-xs font-bold text-on-surface-variant">${fmtTime(s.clockIn)} – ${fmtTime(s.clockOut)}</span>
+                    <span class="text-sm font-bold text-primary">${fmtDuration(s.duration || 0)}</span>
+                    <span class="text-xs text-outline-variant">฿${Math.round((s.duration || 0) / 60 * 35).toLocaleString()}</span>
+                </div>
+            </div>`;
+    }).join('')}
+    </div>`;
+}
+
+function scheduleSelectDay(idx) {
+    // Update chip states
+    document.querySelectorAll('.schedule-day-chip').forEach((el, i) => {
+        const isSelected = i === idx;
+        const isToday = el.dataset.today === '1';
+        if (isSelected) {
+            el.className = el.className.replace(/bg-\S+/g, '').trim();
+            el.classList.add('schedule-day-chip', 'bg-primary', 'text-on-primary', 'shadow-lg');
+            el.querySelector('.chip-day').classList.remove('text-on-surface');
+            el.querySelector('.chip-label').classList.remove('text-on-surface-variant');
+        } else {
+            el.classList.remove('bg-primary', 'text-on-primary', 'shadow-lg');
+            el.classList.add(isToday ? 'bg-primary-container' : 'bg-surface-container-lowest');
+            el.querySelector('.chip-day').classList.add('text-on-surface');
+            el.querySelector('.chip-label').classList.add('text-on-surface-variant');
+        }
+    });
+    // Update detail panel
+    const detail = document.getElementById('schedule-day-detail');
+    if (detail) {
+        detail.innerHTML = window._scheduleWeekDaysCache
+            ? scheduleRenderDayDetail(window._scheduleWeekDaysCache, window._scheduleUsersCache, idx)
+            : '';
+    }
+}
+
 async function renderSchedule() {
     const user = currentUser();
     const isAdmin = user.role === 'admin';
@@ -1122,68 +1186,109 @@ async function renderSchedule() {
         });
     }
 
+    // Cache for use in scheduleSelectDay
+    window._scheduleWeekDaysCache = weekDays;
+    window._scheduleUsersCache = users;
+
+    const todayIdx = weekDays.findIndex(d => d.isToday);
+    const defaultMobileIdx = todayIdx >= 0 ? todayIdx : 0;
+
     const app = document.getElementById('app');
     app.innerHTML = `${renderSidebar('schedule')} ${renderMobileNav('schedule')}
     <main class="main-with-sidebar flex-1 md:ml-72 flex flex-col min-h-screen pb-20 md:pb-0">
         ${renderTopBar('ตารางงาน')}
-        <section class="p-8 flex-1">
-            <div class="max-w-6xl mx-auto">
-                <div class="mb-10">
-                    <span class="text-xs font-bold uppercase tracking-[0.2em] text-primary/60 mb-2 block">Schedule</span>
-                    <h1 class="text-4xl font-headline font-extrabold tracking-tighter text-primary">ตารางงานประจำสัปดาห์</h1>
-                    <p class="text-on-surface-variant mt-2">${startOfWeek.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })} — ${weekDays[6].date.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                </div>
+        <section class="flex-1">
 
-                <!-- Week Grid -->
-                <div class="grid grid-cols-7 gap-3 mb-8">
-                    ${weekDays.map(d => `
-                    <div class="rounded-2xl p-4 text-center ${d.isToday ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-container-lowest shadow-sm'} transition-all">
-                        <p class="text-xs font-bold uppercase tracking-widest ${d.isToday ? 'text-on-primary/70' : 'text-on-surface-variant'}">${d.label}</p>
-                        <p class="text-2xl font-headline font-extrabold mt-1 ${d.isToday ? '' : 'text-on-surface'}">${d.day}</p>
-                        <div class="mt-3">
-                            <span class="text-xs font-bold ${d.isToday ? 'text-on-primary/80' : 'text-primary'}">${d.sessions.length} เซสชัน</span>
-                        </div>
-                    </div>`).join('')}
-                </div>
-
-                <!-- Daily Detail -->
-                ${weekDays.filter(d => d.sessions.length > 0).map(d => `
-                <div class="bg-white rounded-2xl shadow-sm border border-outline-variant/10 mb-4 overflow-hidden">
-                    <div class="p-5 border-b border-surface-container-high flex justify-between items-center ${d.isToday ? 'bg-primary-container/20' : ''}">
-                        <h3 class="font-bold text-on-surface flex items-center gap-2">
-                            ${d.isToday ? '<span class="w-2 h-2 rounded-full bg-primary pulse-dot"></span>' : ''}
-                            ${d.fullLabel}
-                        </h3>
-                        <span class="text-xs text-on-surface-variant font-medium">${d.sessions.length} เซสชัน • ${fmtDuration(d.sessions.reduce((a, s) => a + (s.duration || 0), 0))}</span>
+            <!-- ── DESKTOP LAYOUT (md+) ── -->
+            <div class="hidden md:block p-8">
+                <div class="max-w-6xl mx-auto">
+                    <div class="mb-10">
+                        <span class="text-xs font-bold uppercase tracking-[0.2em] text-primary/60 mb-2 block">Schedule</span>
+                        <h1 class="text-4xl font-headline font-extrabold tracking-tighter text-primary">ตารางงานประจำสัปดาห์</h1>
+                        <p class="text-on-surface-variant mt-2">${startOfWeek.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })} — ${weekDays[6].date.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                     </div>
-                    ${d.sessions.map(s => {
+                    <div class="grid grid-cols-7 gap-3 mb-8">
+                        ${weekDays.map(d => `
+                        <div class="rounded-2xl p-4 text-center ${d.isToday ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-container-lowest shadow-sm'} transition-all">
+                            <p class="text-xs font-bold uppercase tracking-widest ${d.isToday ? 'text-on-primary/70' : 'text-on-surface-variant'}">${d.label}</p>
+                            <p class="text-2xl font-headline font-extrabold mt-1 ${d.isToday ? '' : 'text-on-surface'}">${d.day}</p>
+                            <div class="mt-3">
+                                <span class="text-xs font-bold ${d.isToday ? 'text-on-primary/80' : 'text-primary'}">${d.sessions.length} เซสชัน</span>
+                            </div>
+                        </div>`).join('')}
+                    </div>
+                    ${weekDays.filter(d => d.sessions.length > 0).map(d => `
+                    <div class="bg-white rounded-2xl shadow-sm border border-outline-variant/10 mb-4 overflow-hidden">
+                        <div class="p-5 border-b border-surface-container-high flex justify-between items-center ${d.isToday ? 'bg-primary-container/20' : ''}">
+                            <h3 class="font-bold text-on-surface flex items-center gap-2">
+                                ${d.isToday ? '<span class="w-2 h-2 rounded-full bg-primary pulse-dot"></span>' : ''}
+                                ${d.fullLabel}
+                            </h3>
+                            <span class="text-xs text-on-surface-variant font-medium">${d.sessions.length} เซสชัน • ${fmtDuration(d.sessions.reduce((a, s) => a + (s.duration || 0), 0))}</span>
+                        </div>
+                        ${d.sessions.map(s => {
         const staffUser = users.find(u => u.id === (s.userId || s.staffId));
         return `<div class="flex items-center justify-between p-4 border-b border-surface-container-high/50 last:border-0 hover:bg-surface-container-low/30 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-full bg-primary-container/30 flex items-center justify-center text-primary text-xs font-bold">${staffUser ? getInitials(staffUser.name) : '??'}</div>
-                                <div>
-                                    <p class="font-semibold text-sm">${staffUser ? staffUser.name : 'ไม่ทราบ'}</p>
-                                    <p class="text-xs text-on-surface-variant">${staffUser ? (ROLE_LABELS[staffUser.role] || staffUser.role) : ''}</p>
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-primary-container/30 flex items-center justify-center text-primary text-xs font-bold">${staffUser ? getInitials(staffUser.name) : '??'}</div>
+                                    <div>
+                                        <p class="font-semibold text-sm">${staffUser ? staffUser.name : 'ไม่ทราบ'}</p>
+                                        <p class="text-xs text-on-surface-variant">${staffUser ? (ROLE_LABELS[staffUser.role] || staffUser.role) : ''}</p>
+                                    </div>
                                 </div>
-                            </div>
-                             <div class="flex items-center gap-6">
-                                <p class="text-[10px] font-bold text-outline-variant uppercase tracking-widest text-right">
-                                    ${fmtTime(s.clockIn)} - ${fmtTime(s.clockOut)}<br/>
-                                    <span class="text-primary text-sm">฿${Math.round((s.duration || 0) / 60 * 35).toLocaleString()}</span>
-                                </p>
-                                <span class="text-sm font-bold text-on-surface-variant w-16 text-right">${fmtDuration(s.duration || 0)}</span>
-                            </div>
-                        </div>`;
+                                <div class="flex items-center gap-6">
+                                    <p class="text-[10px] font-bold text-outline-variant uppercase tracking-widest text-right">
+                                        ${fmtTime(s.clockIn)} - ${fmtTime(s.clockOut)}<br/>
+                                        <span class="text-primary text-sm">฿${Math.round((s.duration || 0) / 60 * 35).toLocaleString()}</span>
+                                    </p>
+                                    <span class="text-sm font-bold text-on-surface-variant w-16 text-right">${fmtDuration(s.duration || 0)}</span>
+                                </div>
+                            </div>`;
     }).join('')}
-                </div>`).join('')}
-
-                ${weekDays.every(d => d.sessions.length === 0) ? `
-                <div class="bg-surface-container-low rounded-2xl p-12 text-center">
-                    <span class="material-symbols-outlined text-6xl text-on-surface-variant/30 mb-4">calendar_month</span>
-                    <p class="text-on-surface-variant text-lg">ยังไม่มีข้อมูลการทำงานในสัปดาห์นี้</p>
-                    <p class="text-on-surface-variant/60 text-sm mt-2">ข้อมูลจะแสดงเมื่อมีการลงเวลาเข้า-ออกงาน</p>
-                </div>` : ''}
+                    </div>`).join('')}
+                    ${weekDays.every(d => d.sessions.length === 0) ? `
+                    <div class="bg-surface-container-low rounded-2xl p-12 text-center">
+                        <span class="material-symbols-outlined text-6xl text-on-surface-variant/30 mb-4">calendar_month</span>
+                        <p class="text-on-surface-variant text-lg">ยังไม่มีข้อมูลการทำงานในสัปดาห์นี้</p>
+                        <p class="text-on-surface-variant/60 text-sm mt-2">ข้อมูลจะแสดงเมื่อมีการลงเวลาเข้า-ออกงาน</p>
+                    </div>` : ''}
+                </div>
             </div>
+
+            <!-- ── MOBILE LAYOUT ── -->
+            <div class="md:hidden flex flex-col min-h-0">
+
+                <!-- Month/Week header -->
+                <div class="px-5 pt-5 pb-3">
+                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary/60">Schedule</p>
+                    <h1 class="text-2xl font-headline font-extrabold tracking-tight text-primary mt-0.5">ตารางงานสัปดาห์นี้</h1>
+                    <p class="text-xs text-on-surface-variant mt-1">
+                        ${startOfWeek.toLocaleDateString('th-TH', { day: 'numeric', month: 'long' })} – ${weekDays[6].date.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                </div>
+
+                <!-- Horizontal date strip -->
+                <div class="px-5 pb-4">
+                    <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide" style="-webkit-overflow-scrolling:touch;scrollbar-width:none;">
+                        ${weekDays.map((d, i) => `
+                        <button
+                            class="schedule-day-chip flex-shrink-0 flex flex-col items-center justify-center w-16 py-3 rounded-2xl transition-all active:scale-95
+                                ${i === defaultMobileIdx ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : d.isToday ? 'bg-primary-container' : 'bg-surface-container-lowest shadow-sm'}"
+                            data-today="${d.isToday ? '1' : '0'}"
+                            onclick="scheduleSelectDay(${i})">
+                            <span class="chip-label text-[10px] font-bold uppercase tracking-widest ${i === defaultMobileIdx ? 'text-on-primary/70' : 'text-on-surface-variant'}">${d.label}</span>
+                            <span class="chip-day text-xl font-headline font-extrabold mt-0.5 ${i === defaultMobileIdx ? '' : 'text-on-surface'}">${d.day}</span>
+                            <span class="mt-1 w-1.5 h-1.5 rounded-full ${d.sessions.length > 0 ? (i === defaultMobileIdx ? 'bg-on-primary/60' : 'bg-primary') : 'bg-transparent'}"></span>
+                        </button>`).join('')}
+                    </div>
+                </div>
+
+                <!-- Selected day detail -->
+                <div id="schedule-day-detail" class="px-5 pb-4">
+                    ${scheduleRenderDayDetail(weekDays, users, defaultMobileIdx)}
+                </div>
+            </div>
+
         </section>
         ${renderFooter()}
     </main>`;
